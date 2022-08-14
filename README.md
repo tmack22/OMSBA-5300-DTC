@@ -21,7 +21,7 @@ The following analysis attempts to determine how COVID-19 affected the retail in
 ```
 q1_employment <- read_dta('cps_00001.dta') 
 covid_history <- read_csv('covid_history.csv') 
-state_lockdowns <- read_csv('state_lockdown_data.csv')
+state_lockdowns <- read_csv('state_lockdowns.csv')
 state_names <- read_csv('state_names.csv')
 timeline <- read_csv('timeline.csv')
 ```
