@@ -14,7 +14,7 @@ The following analysis attempts to determine how COVID-19 affected the retail in
 | `whyunemp` | specifies why respondents were unemployed |            |
 | `occ2010`  | respondent's occupation based on the Census Bureau's scheme |
 | `covidunaw` | could respondent's unemployment be attributed to COVID-19 |
-| `lockdown_start` | 
+| `lockdown_start` | stay at home implemented lock down by government |
 
 
 **Raw Data**:
