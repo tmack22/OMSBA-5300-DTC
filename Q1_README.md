@@ -1,4 +1,4 @@
-# Jomaica - Q1. How has COVID affected the health of the retail industry, as measured by employment?
+# Q1. How has COVID affected the health of the retail industry, as measured by employment?
 
 The following analysis attempts to determine how COVID-19 affected the retail industry's health and retail unemployment is used as a measure of industry health in this analysis. The assumption is that a healthy retail industry has a consistent flow of revenue, allowing it to keep a consistent sized employee pool. An unhealthy industry would be characterized by a high rate of layoffs as retail revenues decline, forcing retailers to minimize losses by reducing employee-related operational costs.
 
