@@ -11,7 +11,6 @@ library(estimatr)
 library(RCurl)
 
 # load in data 
-setwd('./Data/')
 q1_employment <- read_dta('./cps_00001.dta') 
 covid_history <- read_csv('./covid_history.csv') 
 state_lockdowns <- read_csv('./state_lockdowns.csv')
