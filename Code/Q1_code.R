@@ -8,14 +8,14 @@ library(vtable)
 library(haven)
 library(lubridate)
 library(estimatr)
+library(RCurl)
 
 # load in data 
-
-q1_employment <- read_dta('cps_00001.dta') 
-covid_history <- read_csv('covid_history.csv') 
-state_lockdowns <- read_csv('state_lockdowns.csv')
-state_names <- read_csv('state_names.csv')
-timeline <- read_csv('timeline.csv') # google trends data
+q1_employment <- read_dta('./cps_00001.dta') 
+covid_history <- read_csv('./covid_history.csv') 
+state_lockdowns <- read_csv('./state_lockdowns.csv')
+state_names <- read_csv('./state_names.csv')
+timeline <- read_csv('./timeline.csv') # google trends data
 
 
 # t_data = tidy data in progress (this is the df that is manipulated) 
