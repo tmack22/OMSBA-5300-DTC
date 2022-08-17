@@ -52,7 +52,7 @@ timeline <- read_csv('timeline.csv')
 |:------    |:-------------------------------------------------     | 
 | `whyunemp` = "rationale" | this variable is categorized into a "rationale" with reasons being: **"Laid Off"**, **"Other"** and **"Temporary Employment"** which specifies why respondents were unemployed |
 | `occ2010` = "occupation" | respondent's occupation based on the Census Bureau's scheme |
-| `covidunaw` ="covid impact" | could respondent's unemployment be attributed to COVID-19 |
+| `covidunaw` = "covid_impact" | could respondent's unemployment be attributed to COVID-19 |
 
 **H0** = As measured by unemployment, COVID had no impact on retail industry health. (*Key*: COVID had no impact.)
 **H1** = Retail industry health was affected by COVID related measures, specifically stay at home orders. (*Key*: COVID related measures: lock downs.)
@@ -65,7 +65,7 @@ to-do:
   + narrow the date range from November 2020 to January 2021, focusing on the time when COVID-19 became a prominent news item.
   
   
-* categorize the `q1_employment` data into `rationale` (for reasons why they are unemployed) categories to look at which employment changed into three levels:
+* categorize the `whyunemp` data into "rationale" (for reasons why they are unemployed) categories to look at which employment changed into three levels:
 
   + “Laid Off”,
   + “Other”,

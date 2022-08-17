@@ -224,13 +224,40 @@ state_lockdowns &lt;- read_csv(&#39;state_lockdowns.csv&#39;)
 state_names &lt;- read_csv(&#39;state_names.csv&#39;)
 timeline &lt;- read_csv(&#39;timeline.csv&#39;)</code></pre>
 <p><strong>Analysis</strong>:</p>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="87%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Variable</th>
+<th align="left">Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>whyunemp</code> = “rationale”</td>
+<td align="left">this variable is categorized into a “rationale” with reasons being: <strong>“Laid Off”</strong>, <strong>“Other”</strong> and <strong>“Temporary Employment”</strong> which specifies why respondents were unemployed</td>
+</tr>
+<tr class="even">
+<td align="left"><code>occ2010</code> = “occupation”</td>
+<td align="left">respondent’s occupation based on the Census Bureau’s scheme</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>covidunaw</code> = “covid_impact”</td>
+<td align="left">could respondent’s unemployment be attributed to COVID-19</td>
+</tr>
+</tbody>
+</table>
+<p><strong>H0</strong> = As measured by unemployment, COVID had no impact on retail industry health. (<em>Key</em>: COVID had no impact.) <strong>H1</strong> = Retail industry health was affected by COVID related measures, specifically stay at home orders. (<em>Key</em>: COVID related measures: lock downs.)</p>
 <p>to-do:</p>
 <ul>
 <li><p>first plot a graph of the total reported unemployment per month:</p>
 <ul>
 <li>narrow the date range from November 2020 to January 2021, focusing on the time when COVID-19 became a prominent news item.</li>
 </ul></li>
-<li><p>categorize the <code>q1_employment</code> data into <code>rationale</code> (for reasons why they are unemployed) categories to look at which employment changed into three levels:</p>
+<li><p>categorize the <code>whyunemp</code> data into “rationale” (for reasons why they are unemployed) categories to look at which employment changed into three levels:</p>
 <ul>
 <li>“Laid Off”,</li>
 <li>“Other”,</li>
