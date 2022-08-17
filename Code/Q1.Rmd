@@ -48,6 +48,16 @@ timeline <- read_csv('timeline.csv')
 
 **Analysis**:
 
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `whyunemp` = "rationale" | this variable is categorized into a "rationale" with reasons being: **"Laid Off"**, **"Other"** and **"Temporary Employment"** which specifies why respondents were unemployed |
+| `occ2010` = "occupation" | respondent's occupation based on the Census Bureau's scheme |
+| `covidunaw` ="covid impact" | could respondent's unemployment be attributed to COVID-19 |
+
+**H0** = As measured by unemployment, COVID had no impact on retail industry health. (*Key*: COVID had no impact.)
+**H1** = Retail industry health was affected by COVID related measures, specifically stay at home orders. (*Key*: COVID related measures: lock downs.)
+
+
 to-do:
 
 * first plot a graph of the total reported unemployment per month:
