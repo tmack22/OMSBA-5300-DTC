@@ -69,7 +69,7 @@ to-do:
 
   + “Laid Off”,
   + “Other”,
-  + “Temporary Job Ended”
+  + “Temporary Employment”
   
   
 * relationship between `timeline` (google search trends) and layoffs.
