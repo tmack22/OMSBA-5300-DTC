@@ -1,5 +1,5 @@
 #Need to review data source - how to get more granular date data - survey
-# data from multiple months?
+# data from multiple months? In COVID category?
 
 #Load libraries
 
