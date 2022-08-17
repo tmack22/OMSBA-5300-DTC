@@ -14,11 +14,20 @@ industry_names <- read.csv('./indnames.csv') %>%
     indname != 'Retail Trade' ~ 0))
 
 data <- read_dta('./Industry_data.dta.gz')
+        
+  
+df <- inner_join(data,industry_names,by= "ind") %>%
+      mutate(cpsid = format(cpsid,scientific= FALSE)) %>%
+      mutate(cpsidp = format(cpsidp,scientific= FALSE))
 
-df <- inner_join(data,industry_names,by= "ind")
+filtered_df <- df %>% group_by(year, month, indname,cpsidp) %>%
+           mutate(n = n()) %>%
+           filter(n != 1) #to filter out all duplicate entries
+           
 
-results <- df %>% group_by(indname, year, month) %>%
-  mutate(n = n())
-ggplot(mapping= aes(x= year,y= n, group= indname)) + geom_line(aes(color= indname)) + 
-  geom_point() 
+
+
+
+ggplot(mapping= aes(x= year,y= n, group= df$indname)) + 
+           geom_line(aes(color= indname)) + geom_point() 
 
