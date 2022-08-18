@@ -6,8 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-# knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "C:/Users/krist/Documents/SU_OMSBA/Summer_2022/DTC/DTC_GitHub/OMSBA-5300-DTC/data_kh")
+knitr::opts_chunk$set(echo = TRUE)
+
 ```
 
 # Load in Libraries
@@ -138,8 +138,6 @@ demographics_data <- dem_data %>%
          , -DURUNEM2, -WHYABSNT, 
          -WKSTAT, -MULTJOB, - NUMJOB, - UNION, -OTPAY, -ASECFLAG, -SERIAL
          , -HISPAN, - EDUC99, -MONTH, -YEAR)
-
-
 
 ```
 
@@ -304,8 +302,20 @@ DF <- demographics_data %>%
          , IndustryName = as_factor(indname), IndustryCategories = as_factor(industry_cats), State = as_factor(Name))
 
 ```
+- Data was provided by IPUMS Current Population Survey and employment statistics were chosen as an indicator of the health of an industry since
+ revenues of the business can be misrepresented, or might be affected by government aid.
+
+- Timeline was from January 1, 2019 to December 31, 2021.
+    - January 1, 2019- to - Feburary 28, 2020 is pre-Covid.
+    - March 1, 2020 through March 31, 2020 is COVID
+    - April 1, 2020 through December 31, 2021 is after-covid.
+    
+  ******do all our rows have WTFINL in them????   ********* consider dropping and explaining if we do?  I can only tell once receive all the files.
+- Industries were picked based on first evaluating essential workers and non-essential workers.
+    - Essential employees work in Retail, Transportation and Warehousing and all other industries non-essential during covid.
 
 ## Aggregations
+
 
 ```{r}
 
@@ -336,6 +346,8 @@ DF %>%
 
 deg_types %>%  group_by(month) %>% mutate(avg_hi_lo = mean(hi_lo_index)) %>% 
   ggplot(aes(x= num_earnings, y = ct_index)) +  geom_point()+ geom_smooth(method = 'lm') + labs(x = "Amount Earnings", y = "Count of Improved Index", title = "Improved Index v Amount Earnings") 
+
+Geography
 
 
 
