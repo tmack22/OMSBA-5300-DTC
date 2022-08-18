@@ -37,13 +37,27 @@ t_employment <- t_employment %>%
 #filter for desired timeline
 t_employment <- t_employment %>% 
   filter(year > 2018 & year < 2022) %>% 
-  mutate(month = as.factor(month))
+  mutate(month = as.factor(month)) %>% 
+  mutate(year_month = as.factor(paste0(year, '-', month)))
 
 #group by state, year, month
-t_employment <- t_employment %>% 
-  group_by(statefip, year, month) %>% 
+t_employment_group <- t_employment %>% 
+  group_by(statefip, year_month) %>% 
   summarise(num_employed = sum(employed==1),
             num_unemployed = sum(unemployed==1),
             num_employable = num_employed + num_unemployed) %>% 
   mutate(percent_emp = num_employed/num_employable,
          percent_unemp = num_unemployed/num_employable)
+
+#alt groups
+alt_group <- t_employment %>% 
+  group_by(year_month) %>% 
+  summarise(num_employed = sum(employed==1),
+            num_unemployed = sum(unemployed==1),
+            num_employable = num_employed + num_unemployed) %>% 
+  mutate(percent_emp = num_employed/num_employable,
+         percent_unemp = num_unemployed/num_employable)
+
+alt_group %>% 
+  ggplot(aes(x=year_month, y=percent_emp)) + geom_point() +
+  theme(axis.text.x= element_text(size=7, angle=90))
