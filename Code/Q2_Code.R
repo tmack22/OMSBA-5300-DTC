@@ -40,9 +40,3 @@ summary <- filtered_df %>%
            distinct()
 
 
-
-
-
-ggplot(mapping= aes(x= year,y= n, group= df$indname)) + 
-           geom_line(aes(color= indname)) + geom_point() 
-
