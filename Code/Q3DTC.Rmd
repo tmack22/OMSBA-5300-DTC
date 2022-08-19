@@ -321,7 +321,7 @@ summary(DF_1)
  revenues of the business can be misrepresented, or might be affected by government aid.
 
 - Timeline was from January 1, 2019 to December 31, 2021.
-    - January 1, 2019- to - February 28, 2020 is pre-Covid.
+    - January 1, 2019-to-February 28, 2020 is pre-Covid.
     - March 1, 2020 through March 31, 2020 is COVID
     
     - April 1, 2020 through December 31, 2021 is after-covid.
@@ -334,7 +334,21 @@ summary(DF_1)
 - ASSUMPTION: we limit to those that work (>18 & < 70).  #### still need a yearmo
 
 ```{r}
+pre_covid <- DF_1 %>%
+  filter(date_.x < '2020-03-01') %>%
+  select(-covid_work_remote, -covid_unable_to_work, -covid_pto, -covid_did_not_look, - unemployment_reason, -absence_reason, -worked_last_year,
+         -CovidTelework, -CovidNoWork, -CovidPaid, -CovidMed
+         )
 
+covid_mar <- DF_1 %>%
+  filter(date_.x >= '2020-03-01', date_.x< '2020-04-01')
+
+
+post_covid <- DF_1 %>%
+  filter(date_.x >= '2020-04-01') %>%
+  select(-covid_work_remote, -covid_unable_to_work, -covid_pto, -covid_did_not_look, - unemployment_reason, -absence_reason, -worked_last_year,
+         -CovidTelework, -CovidNoWork, -CovidPaid, -CovidMed
+         )
 
 ```
 
