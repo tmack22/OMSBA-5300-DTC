@@ -48,7 +48,6 @@ dem_data <- read_ipums_micro(dem_ddi) %>%
     , date_ = as_date(paste(YEAR, month_digit, '01', sep = '-'))
   )
   ## Filter for legal adults only
-  
 
 # Read in IPUMS Covid and Unemployment Data 
 cov_ddi <- read_ipums_ddi("cps_00004.xml")   
@@ -141,7 +140,7 @@ demographics_data <- dem_data %>%
 
 ```
 
-## Create Covid, Medical, & Unemployment df (2020 on \~)
+## Create Covid, Medical, & Unemployment df (MAY(?)2020 on \~)
 
 ```{r}
 
@@ -275,7 +274,7 @@ DF <- demographics_data %>%
   ## Join in industry categories
   left_join(Industries, by = 'IND') %>% 
   ## Join in Covid/Unemployment Data
-  left_join(covid_df, by = "CPSIDP") %>% 
+  left_join(covid_df, by = "CPSIDP") %>%   # 25 million rows
   mutate(industry_cats = case_when(
     indname == 'Retail Trade' ~ 'retail'
        , indname == 'Manufacturing' ~ 'manufacturing'
@@ -285,40 +284,56 @@ DF <- demographics_data %>%
        , indname == 'Transportation and Warehousing, and Utilities' ~ 'transport_warehouse'
        , indname == 'Construction' ~ 'Construction',
      TRUE ~ 'OTHER') 
-  ) %>% 
+  ) # should we filter for >18 years of age and less than 70?
+
 
   ## mutate and select. convert into factors
-  mutate(HWTFINL = as_factor(HWTFINL), Metro = as_factor(METRO), FamilyIncome = as_factor(FAMINC)
-         , WTFINL = as_factor(WTFINL),Race = as_factor(RACE),
-         MaritalStatus = as_factor(MARST), Occupation = as_factor(OCC), IndustryCode = as_factor(IND)
-         , UHRSWORK1 = as_factor(UHRSWORK1),
-         AHRSWORK1 = as_factor(AHRSWORK1), WhyUnemployed = as_factor(WHYUNEMP)
-         , EARNWT = as_factor(EARNWT), HourWage = as_factor(HOURWAGE),
-         HourlyPay = as_factor(PAIDHOUR), EarnWeekly = as_factor(EARNWEEK)
-         , AgeGroup = as_factor(AgeGroup), Regions = as_factor(Regions),
-         Education = as_factor(Education), LaborForce = as_factor(LaborForce)
-         , EmploymentStatus = as_factor(EmploymentStatus), 
-         WorkStatus = as_factor(WorkStatus), FamilyIncome = as_factor(FamilyIncome)
-         , IndustryName = as_factor(indname), IndustryCategories = as_factor(industry_cats), State = as_factor(Name))
+DF_convert_class <- DF %>%
+  mutate(Metro = as_factor(METRO),Race = as_factor(RACE), MaritalStatus = as_factor(MARST),
+         Occupation = as_factor(OCC), WhyUnemployed = as_factor(WHYUNEMP),
+         AgeGroup = as_factor(AgeGroup), Regions = as_factor(REGION),
+         Education = as_factor(Education), LaborForce = as_factor(LaborForce),
+         EmploymentStatus = as_factor(EmploymentStatus), 
+         WorkStatus = as_factor(WorkStatus), IndustryName = as_factor(indname), 
+         IndustryCategories = as_factor(indname), State = as_factor(Name),
+         CovidTelework = as_factor(COVIDTELEW), CovidNoWork = as_factor(COVIDUNAW), CovidPaid = as_factor(COVIDPAID),
+         CovidLook = as_factor(COVIDLOOK), CovidMed = as_factor(COVIDMED),
+         unemployment_reason = as_factor(unemployment_reason),
+         absence_reason = as_factor(absence_reason),
+         )
+      
+vtable(DF_convert_class, lush = TRUE)
+summary(DF_convert_class)
+
+DF_1 <- DF_convert_class %>%
+  select(-STATEFIP, -METRO, -REGION, -RACE, -MARST, -OCC, -IND, -WHYUNEMP, -PAIDHOUR, -EARNWEEK
+         , -Division, -Name, -COVIDTELEW, -COVIDUNAW, -COVIDPAID, - COVIDMED, -COVIDLOOK, -Division,
+         -indname, -month_digit, -date_.y 
+    
+        )
+
+vtable(DF_1, lush = TRUE)
+summary(DF_1)
+
 
 ```
 - Data was provided by IPUMS Current Population Survey and employment statistics were chosen as an indicator of the health of an industry since
  revenues of the business can be misrepresented, or might be affected by government aid.
 
 - Timeline was from January 1, 2019 to December 31, 2021.
-    - January 1, 2019- to - Feburary 28, 2020 is pre-Covid.
+    - January 1, 2019- to - February 28, 2020 is pre-Covid.
     - March 1, 2020 through March 31, 2020 is COVID
+    
     - April 1, 2020 through December 31, 2021 is after-covid.
     
   ******do all our rows have WTFINL in them????   ********* consider dropping and explaining if we do?  I can only tell once receive all the files.
 - Industries were picked based on first evaluating essential workers and non-essential workers.
     - Essential employees work in Retail, Transportation and Warehousing and all other industries non-essential during covid.
 
-## Aggregations
-
+## Aggregations - what do you think about parsing out with dates?  < 3/1/202 = Before-Covid, 3/2020 = COVID, 4/1/2020 = Post-Covid?  
+- ASSUMPTION: we limit to those that work (>18 & < 70).  #### still need a yearmo
 
 ```{r}
-
 
 
 ```
