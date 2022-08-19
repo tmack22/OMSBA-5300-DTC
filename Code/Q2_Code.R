@@ -4,7 +4,8 @@ library(vtable)
 library(haven)
 library(lubridate)
 library(estimatr)
-
+library(fixest)
+library(dplyr)
 
 
 setwd('./Data/')
@@ -19,24 +20,24 @@ data <- read_dta('./Industry_data.dta.gz')
 df <- inner_join(data,industry_names,by= "ind") %>%
       mutate(cpsid = format(cpsid,scientific= FALSE)) %>%
       mutate(cpsidp = format(cpsidp,scientific= FALSE)) %>%
-      mutate(year_month = paste(year,"-",month,sep= '')) %>%
-      mutate(unique_id = paste(serial,pernum,sep= ''))
+      mutate(year_month = paste(year,"-", month,sep= '')) %>%
+      mutate(covid_active = case_when(year_month >= '2020-3' ~ 1,
+                                      year_month < '2020-3' ~ 0))
+      
 
-filtered_df <- df %>% group_by(year_month, indname,cpsidp) %>%
-              # drop_na(asecwt) %>%
-               mutate(n = n()) %>%
-               filter(n == 1) #to filter out all duplicate entries
-filtered_df <- filtered_df[-c(ncol(filtered_df))] #removing the n column
+filtered_df <- df %>% filter(cpsid > 0) %>%
+                      group_by(year_month,indname) %>%
+                      mutate(n = n())
 
-filtered_out_df <- df %>% group_by(year_month, indname,unique_id) %>%
+filtered_out_df <- df %>% group_by(year_month, indname,cpsidp) %>%
                    mutate(n = n()) %>%
                    filter(n != 1)   
 
 summary <- filtered_df %>%
-           ungroup(year,cpsidp) %>% 
-           select(c("year_month","indname")) %>%
-           group_by(year_month,indname) %>%
-           mutate(n = n()) %>%
+           select(c("year_month","indname","covid_active","n")) %>%
            distinct()
+
+reg <- feols(n~indname * covid_active ,data=summary)
+etable(reg)
 
 
