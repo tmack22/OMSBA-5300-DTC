@@ -136,7 +136,7 @@ demographics_data <- dem_data %>%
   select(-STATECENSUS, -PERNUM, -SEX, - EMPSTAT, -LABFORCE, -DURUNEMP
          , -DURUNEM2, -WHYABSNT, 
          -WKSTAT, -MULTJOB, - NUMJOB, - UNION, -OTPAY, -ASECFLAG, -SERIAL
-         , -HISPAN, - EDUC99, -MONTH, -YEAR)
+         , -HISPAN, - EDUC99)
 
 ```
 
@@ -301,19 +301,12 @@ DF_convert_class <- DF %>%
          unemployment_reason = as_factor(unemployment_reason),
          absence_reason = as_factor(absence_reason),
          )
-      
-vtable(DF_convert_class, lush = TRUE)
-summary(DF_convert_class)
 
 DF_1 <- DF_convert_class %>%
   select(-STATEFIP, -METRO, -REGION, -RACE, -MARST, -OCC, -IND, -WHYUNEMP, -PAIDHOUR, -EARNWEEK
          , -Division, -Name, -COVIDTELEW, -COVIDUNAW, -COVIDPAID, - COVIDMED, -COVIDLOOK, -Division,
          -indname, -month_digit, -date_.y 
-    
         )
-
-vtable(DF_1, lush = TRUE)
-summary(DF_1)
 
 
 ```
@@ -334,25 +327,29 @@ summary(DF_1)
 - ASSUMPTION: we limit to those that work (>18 & < 70).  #### still need a yearmo
 
 ```{r}
-pre_covid <- DF_1 %>%
-  filter(date_.x < '2020-03-01') %>%
-  select(-covid_work_remote, -covid_unable_to_work, -covid_pto, -covid_did_not_look, - unemployment_reason, -absence_reason, -worked_last_year,
-         -CovidTelework, -CovidNoWork, -CovidPaid, -CovidMed
-         )
-
-covid_mar <- DF_1 %>%
-  filter(date_.x >= '2020-03-01', date_.x< '2020-04-01')
 
 
-post_covid <- DF_1 %>%
-  filter(date_.x >= '2020-04-01') %>%
-  select(-covid_work_remote, -covid_unable_to_work, -covid_pto, -covid_did_not_look, - unemployment_reason, -absence_reason, -worked_last_year,
-         -CovidTelework, -CovidNoWork, -CovidPaid, -CovidMed
-         )
+
+
+```
+
+
+##
+
+```{r}
+
 
 ```
 
 # EDA
+geography <- simplified %>%
+  
+```{r}
+  
+  
+
+
+
 
 ## DF Table Summaries
 
