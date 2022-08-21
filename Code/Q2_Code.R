@@ -26,18 +26,25 @@ df <- inner_join(data,industry_names,by= "ind") %>%
 
 
 filtered_df <- df %>% filter(cpsid > 0) %>%
+  filter(empstat <20) %>% #20 and above indicates they are unemployed/no looking
   group_by(year_month,indname) %>%
   mutate(n = n())
 
-filtered_out_df <- df %>% group_by(year_month, indname,cpsidp) %>%
-  mutate(n = n()) %>%
-  filter(n != 1)   
 
 summary <- filtered_df %>%
-  select(c("year_month","indname","covid_active","n")) %>%
+  select(c("year_month","indname","covid_active","Retail","n")) %>%
   distinct()
 
-reg <- feols(n~indname * covid_active ,data=summary)
-etable(reg)
+reg1 <- feols(n~indname + covid_active ,data= summary)
+reg2 <- feols(log(n)~indname + covid_active,data= summary)
+etable(reg1,reg2)
 
+reg3 <- feols(n~Retail + covid_active,data= summary)
+reg4 <- feols(log(n)~Retail + covid_active,data= summary)
+etable(reg3,reg4)
+
+wald(reg1)
+wald(reg2)
+wald(reg3)
+wald(reg4)
 
