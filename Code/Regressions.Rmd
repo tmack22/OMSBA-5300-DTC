@@ -158,7 +158,7 @@ demo_data <- DF %>%
 # Regressions 
 Notes: 
 
-Our hypothesis: Covid disproportionately impacted people of color. Has money == Has Job == Spends money == Happy Retail
+# Our hypothesis: Covid disproportionately impacted people of color. Has money == Has Job == Spends money == Happy Retail
 
 Null hypothesis: Covid did NOT impact employment industries regionally.
 
@@ -210,9 +210,16 @@ reg3 <- reg_df %>%
 etable(reg2, reg3)
 reg4 <- reg_df %>% 
   feols(is_employed~period_type | AGE)
-reg2
 
-etable(reg1, reg2, reg3, reg4)
+reg5 <- reg_df %>%
+  feols((is_employed~period_type*indname))
+
+etable(reg1, reg2, reg3, reg4, reg5)
+
+
+
+
+
 
 ``` 
 
