@@ -209,6 +209,8 @@ demo_data <- DF %>%
     WHYUNEMP == 5 ~ 'ReEnterLaborForce',
     WHYUNEMP == 6 ~ 'FirstJob',
     WHYUNEMP == 0 ~ 'Military')) %>%
+  mutate(employed = ifelse(EMPSTAT <20 & EMPSTAT >= 10 , 1, 0), unemployed = ifelse(EMPSTAT > 20 & EMPSTAT<= 22, 1, 0)) %>% # I updated the conditions to match IPUMS EMPSTAT definitions. 
+  mutate(is_employed = ifelse(EMPSTAT<20 & EMPSTAT>=10, TRUE, FALSE)) %>%  
   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>% 
   mutate(is_employed = ifelse(EMPSTAT<20 & EMPSTAT>10, TRUE, FALSE)) %>% 
   mutate(retail_v_other = ifelse(indname=='Retail Trade', 'Retail', 'Other') ## flag if industry == Retail
@@ -358,7 +360,18 @@ unemp_by_metro
   # pivot_wider(1, names_from = "REGION", values_from = "UnemploymentRate")
 
 # ##### Construct chartS for Pre-covid unemployment by METRO, SUBURBAN, RURAL #####
-EMPC <- demo_data %>%
+EMPC <- 
+  
+  demo_data %>%
+  group_by(METRO, indname) %>% 
+  count() %>% 
+  ggplot(aes(x=METRO, y = n, fill = indname))+geom_bar(stat = 'identity', position = 'fill')+
+  
+  theme(aspect.ratio=3/7)
+EMPC
+
+
+  summarize(ct = count(unique(CPSIDP)))
   pivot_wider(1, names_from = "METRO", values_from = "UnemploymentRate")
 EMPC
 #   ungroup() %>%
