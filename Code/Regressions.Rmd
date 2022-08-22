@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "DTC Q3"
 output: html_notebook
 editor_options: 
   chunk_output_type: inline
@@ -11,7 +11,10 @@ editor_options:
     knitr::opts_knit$set(root.dir = normalizePath("/Users/khigashi/Documents/OMSBA/OMSBA-5300-DTC-Erik-collab/data"))
 ```
 
-```{r}
+
+
+```{r, echo = FALSE}
+# Load Relevent Libraries
 library(ipumsr)  
 library(dplyr)
 library(tidyverse)
@@ -26,8 +29,8 @@ library(echarts4r)
 library(ggplot2)
 ```
 
-# Read in Data
-```{r}
+
+```{r, echo = FALSE}
 #### READ IN INDUSTRY CODES ####
 Industries <- read_csv('indnames.csv') %>%
   rename(IND = ind)
@@ -148,11 +151,25 @@ demo_data <- DF %>%
 ```
 
 
+[IPMUS employment data](https://cps.ipums.org/cps/index.shtml) was used in this analysis, with sample dates ranging from January 2019 to January 2021. The following variables were used:
+
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `period_type` | Identifies if the survey was taken. There are 3 periods: Before COVID (Pre-March 2020), during COVID (during March 2020), and after COVID (Post-March 2020) |
+| `date_` | Date that the survey was taken. |
+| `is_employed` | Flag to note if the respondent was employed or not. |
+| `WTFINL` | Survey person weight (as calculated by CPS)
+| `IND`  | Respondent's work industry code |
+| `indname` | Respondent's work industry name |
+| `REGION` | Respondents location (regional) |
+| `AGE`  | Respondent's age |
+| `sex` |  Respondent sex assigned at birth|
+| `RACE` | Respondent's race |
 
 # Regressions 
 Notes: 
 
-# Our hypothesis: Covid disproportionately impacted people of color. Has money == Has Job == Spends money == Happy Retail
+### Our hypothesis: Covid disproportionately impacted people of color. Has money == Has Job == Spends money == Happy Retail
 
 Null hypothesis: Covid did NOT impact employment industries regionally.
 
@@ -170,43 +187,6 @@ Outcome: employmentStatus
 
 employment = B0 +IndustryB1 + RegionB2 + e
 
-```{r}
-head(demo_data)
-# 
-# EMP_INDUSTRY <- demo_data %>%
-#   group_by(date_, indname, period_type) %>%
-#   summarize(UmploymentRateIndustry = 1- (weighted.mean(employed == 1, w = WTFINL))) %>%
-#   filter(indname != 'Military', indname != 'Other')
-reg_df <- demo_data %>% 
-  select(period_type
-         , date_
-         ## Measure
-         , is_employed
-         , WTFINL
-         ## Variables
-         , IND, indname, REGION
-         ## Fixed
-         , AGE, sex, RACE
-  )
-summary(reg_df)
-reg1 <- reg_df %>% 
-  feols(is_employed~period_type, se = 'hetero')
-reg2 <- reg_df %>% 
-  feols(is_employed~period_type+ RACE, se = 'hetero')
-reg3 <- reg_df %>% 
-  feols(is_employed~period_type | RACE)
-etable(reg2, reg3)
-reg4 <- reg_df %>% 
-  feols(is_employed~period_type | AGE)
-reg5 <- reg_df %>%
-  feols((is_employed~period_type*indname))
-etable(reg1, reg2, reg3, reg4, reg5)
-
-ggplot(reg_df, aes(x = period_type, y = is_employed)) + geom_point() + geom_smooth(method = 'lm')
-
-``` 
-
-
 
 # Explatory Data Analysis
 ```{r}
@@ -218,7 +198,6 @@ vtable(demo_data, lush = TRUE)
 ```
 
 # Data Exploration
-
 ```{r}
 reg_df_vis<- demo_data %>% 
   select(period_type
@@ -552,4 +531,42 @@ reg_df_vis %>%
                 color = "red", size=1)+
    theme(legend.position="right")
 ```
+
+
+
+```{r}
+head(demo_data)
+# 
+# EMP_INDUSTRY <- demo_data %>%
+#   group_by(date_, indname, period_type) %>%
+#   summarize(UmploymentRateIndustry = 1- (weighted.mean(employed == 1, w = WTFINL))) %>%
+#   filter(indname != 'Military', indname != 'Other')
+reg_df <- demo_data %>% 
+  select(period_type
+         , date_
+         ## Measure
+         , is_employed
+         , WTFINL
+         ## Variables
+         , IND, indname, REGION
+         ## Fixed
+         , AGE, sex, RACE
+  )
+summary(reg_df)
+reg1 <- reg_df %>% 
+  feols(is_employed~period_type, se = 'hetero')
+reg2 <- reg_df %>% 
+  feols(is_employed~period_type+ RACE, se = 'hetero')
+reg3 <- reg_df %>% 
+  feols(is_employed~period_type | RACE)
+etable(reg2, reg3)
+reg4 <- reg_df %>% 
+  feols(is_employed~period_type | AGE)
+reg5 <- reg_df %>%
+  feols((is_employed~period_type*indname))
+etable(reg1, reg2, reg3, reg4, reg5)
+
+ggplot(reg_df, aes(x = period_type, y = is_employed)) + geom_point() + geom_smooth(method = 'lm')
+
+``` 
 
