@@ -1,5 +1,7 @@
 ---
 title: "DTC Q3"
+author: "Erik Campbell, Kristen Higashi"
+date: "8/22/2022"
 output: html_notebook
 editor_options: 
   chunk_output_type: inline
@@ -11,6 +13,65 @@ editor_options:
     knitr::opts_knit$set(root.dir = normalizePath("/Users/khigashi/Documents/OMSBA/OMSBA-5300-DTC-Erik-collab/data"))
 ```
 
+
+<br />
+
+### Purpose Statement
+The purpose of this document is to investigate the effect of COVID on working individuals across industries and regions. Retail needs to worry about who has money to spend. In order to have money, you need to make money. Thus our focus is to determine who is working, what they are doing, and how that activity has changed across time. 
+
+### Dataset
+Our analysis applies 3 main data sources:
+
+#####  1. IPUMS variables
+ IPUMS employment data ([link](https://cps.ipums.org/cps/index.shtml)) - Data collected between January 2019 and Januaray 2021
+ 
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `YEAR` |  |
+| `MONTH` |  |
+| `EMPSTAT` | |
+| `WTFINL` | Survey person weight (as calculated by CPS)|
+| `IND`  | Respondent's work industry code |
+| `REGION` | Respondents location (regional) |
+| `AGE`  | Respondent's age |
+| `SEX` |  Marker for respondent sex assigned at birth |
+| `RACE` | Marker for espondent's race |
+
+#####  2. Provided industry csv (*indnames.csv*)
+  Converts IPUMS industry codes to industry names 
+ 
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `IND` | Work industry code (joins to IPUMS IND field) |
+| `indname` | Work industry English name |
+
+
+#####  3. Provided geographic csv (*state-geocodes-v2021.csv*)
+  Converts IPUMS geographies (STATEFIP) to readable geo names.
+
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `STATEFIP` | State FIP code (joins to IPUMS STATEFIP field) |
+| `State` | State English name |
+
+### Analysis & Assumptions
+
+**Hypothesis**: for this study was that COVID impacted imployment industries
+
+**Null hypothesis**: Covid did NOT impact employment industries regionally.
+
+**Treatment**: COVID (March 2020 - January 2021
+
+**Control**: Pre-COVID (January 2019 - February 2020)
+
+**Fixed**: Age, Sex, Race - *Age is assumed constant, due to 2 year time period*
+
+**Variables**: Region, Industry, EmploymentStatus 
+
+**Outcome metric**: employmentStatus
+
+**OLS Regression Equation:**
+$Employment = B_0 +IndustryB_1 + RegionB_2 + e$
 
 
 ```{r, echo = FALSE}
@@ -149,43 +210,6 @@ demo_data <- DF %>%
          , RACE, MARST, IND, WHYUNEMP, AgeGroup, Education, LaborForce
          , EmploymentStatus, WorkStatus, FamilyIncome, indname, cats2, State, period_type)
 ```
-
-
-[IPMUS employment data](https://cps.ipums.org/cps/index.shtml) was used in this analysis, with sample dates ranging from January 2019 to January 2021. The following variables were used:
-
-| Variable |  Definition
-|:------    |:-------------------------------------------------     | 
-| `period_type` | Identifies if the survey was taken. There are 3 periods: Before COVID (Pre-March 2020), during COVID (during March 2020), and after COVID (Post-March 2020) |
-| `date_` | Date that the survey was taken. |
-| `is_employed` | Flag to note if the respondent was employed or not. |
-| `WTFINL` | Survey person weight (as calculated by CPS)
-| `IND`  | Respondent's work industry code |
-| `indname` | Respondent's work industry name |
-| `REGION` | Respondents location (regional) |
-| `AGE`  | Respondent's age |
-| `sex` |  Respondent sex assigned at birth|
-| `RACE` | Respondent's race |
-
-# Regressions 
-Notes: 
-
-### Our hypothesis: Covid disproportionately impacted people of color. Has money == Has Job == Spends money == Happy Retail
-
-Null hypothesis: Covid did NOT impact employment industries regionally.
-
-Treatment = during/post Covid
-Control == precovid
-
-Fixed: Age, Sex, Race, == Human demographics (age since 
-      time period is only 1-2 years)
-
-Variables:
-  Region
-  Industry
-  EmploymentStatus
-Outcome: employmentStatus
-
-employment = B0 +IndustryB1 + RegionB2 + e
 
 
 # Explatory Data Analysis
