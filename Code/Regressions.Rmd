@@ -2,7 +2,12 @@
 title: "DTC Q3"
 author: "Erik Campbell, Kristen Higashi"
 date: "8/22/2022"
-output: html_notebook
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: true
 editor_options: 
   chunk_output_type: inline
 ---
@@ -16,13 +21,13 @@ editor_options:
 
 <br />
 
-### Purpose Statement
+# Purpose Statement
 The purpose of this document is to investigate the effect of COVID on working individuals across industries and regions. Retail needs to worry about who has money to spend. In order to have money, you need to make money. Thus our focus is to determine who is working, what they are doing, and how that activity has changed across time. 
 
-### Dataset
+# Dataset Overview
 Our analysis applies 3 main data sources:
 
-#####  1. IPUMS variables
+1.  IPUMS variables
  IPUMS employment data ([link](https://cps.ipums.org/cps/index.shtml)) - Data collected between January 2019 and Januaray 2021
  
 | Variable |  Definition
@@ -37,7 +42,7 @@ Our analysis applies 3 main data sources:
 | `SEX` |  Marker for respondent sex assigned at birth |
 | `RACE` | Marker for espondent's race |
 
-#####  2. Provided industry csv (*indnames.csv*)
+2.  Provided industry csv (*indnames.csv*)
   Converts IPUMS industry codes to industry names 
  
 | Variable |  Definition
@@ -46,7 +51,7 @@ Our analysis applies 3 main data sources:
 | `indname` | Work industry English name |
 
 
-#####  3. Provided geographic csv (*state-geocodes-v2021.csv*)
+3.  Provided geographic csv (*state-geocodes-v2021.csv*)
   Converts IPUMS geographies (STATEFIP) to readable geo names.
 
 | Variable |  Definition
@@ -54,7 +59,7 @@ Our analysis applies 3 main data sources:
 | `STATEFIP` | State FIP code (joins to IPUMS STATEFIP field) |
 | `State` | State English name |
 
-### Analysis & Assumptions
+# Assumptions & Hypotheses 
 
 **Hypothesis**: for this study was that COVID impacted imployment industries
 
@@ -73,8 +78,14 @@ Our analysis applies 3 main data sources:
 **OLS Regression Equation:**
 $Employment = B_0 +IndustryB_1 + RegionB_2 + e$
 
+# Findings 
 
-```{r, echo = FALSE}
+
+
+
+# Analysis 
+## Load Libraries
+```{r, warning = FALSE, message = FALSE}
 # Load Relevent Libraries
 library(ipumsr)  
 library(dplyr)
@@ -90,8 +101,9 @@ library(echarts4r)
 library(ggplot2)
 ```
 
+## Load and Mutate Data
 
-```{r, echo = FALSE}
+```{r, warning = FALSE, message = FALSE}
 #### READ IN INDUSTRY CODES ####
 Industries <- read_csv('indnames.csv') %>%
   rename(IND = ind)
@@ -123,6 +135,7 @@ DF <- dem_data %>%
   left_join(state_fips, by = 'STATEFIP') %>% # 3.9 million observations
   ## Join in industry categories
   left_join(Industries, by = 'IND')
+
 #### DEMOGRAPHICS DATAFRAME ####
 demo_data <- DF %>%
   mutate(EmploymentStatus = case_when(
@@ -198,7 +211,7 @@ demo_data <- DF %>%
     WHYUNEMP == 0 ~ 'Military')) %>%
   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>% 
   mutate(is_employed = ifelse(EMPSTAT<20 & EMPSTAT>10, TRUE, FALSE)) %>% 
-  mutate(cats2 = ifelse(indname=='Retail Trade', 'Retail', 'Other') ## flag if industry == Retail
+  mutate(retail_v_other = ifelse(indname=='Retail Trade', 'Retail', 'Other') ## flag if industry == Retail
   )%>% 
   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>% 
   mutate_if(is.character, as.factor) %>%
@@ -208,21 +221,17 @@ demo_data <- DF %>%
   select(date_, YEAR, MONTH, HHID, PERNUM, EMPSTAT, is_employed, CPSID, CPSIDP
          , HWTFINL, WTFINL, FAMINC, REGION, METRO, AGE, AgeGroup, SEX, sex
          , RACE, MARST, IND, WHYUNEMP, AgeGroup, Education, LaborForce
-         , EmploymentStatus, WorkStatus, FamilyIncome, indname, cats2, State, period_type)
+         , EmploymentStatus, WorkStatus, FamilyIncome, indname, retail_v_other, State, period_type)
 ```
 
 
-# Explatory Data Analysis
-```{r}
+## EDA
+
+```{r, warning = FALSE, message = FALSE}
 # distinct people in survey = 500,130
 summary(demo_data)
 vtable(demo_data, lush = TRUE)
 
-
-```
-
-# Data Exploration
-```{r}
 reg_df_vis<- demo_data %>% 
   select(period_type
          , date_
@@ -235,48 +244,9 @@ reg_df_vis<- demo_data %>%
          , AGE, sex, RACE
   )
 
-unemp_by_race <- demo_data %>% 
-  group_by(period_type, date_, RACE) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = RACE))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'),
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)
-# + geom_smooth(method = 'lm')
-
-unemp_by_age_group <- demo_data %>% 
-  group_by(period_type, date_, AgeGroup) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = AgeGroup))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'),
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)
 
 
-unemp_by_industry_retail <- demo_data %>% 
-  group_by(period_type, date_, cats2) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'),
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)
-
-
-unemp_by_region <- demo_data %>% 
-  group_by(period_type, date_, REGION) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = REGION))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'),
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)
-
-
-
-unemp_by_is_emp<- demo_data %>% 
+demo_data %>% 
   group_by(date_, is_employed) %>%
   mutate(employ  = n()) %>% 
   ggplot(aes(x = date_, y = employ, color = is_employed))+ geom_area()+
@@ -284,288 +254,259 @@ unemp_by_is_emp<- demo_data %>%
                 color = "red", size=1)+
   geom_vline(xintercept=as_date('2020-04-01'), 
                 color = "red", size=1)
-unemp_by_is_emp
+
 ```
 
-### Employment / Unemployment 
-```{r}
+
+### Industries 
+#### industry Overview
+```{r, warning = FALSE, message = FALSE}
 EMP_INDUSTRY <- demo_data %>%
   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  group_by(date_, indname, period_type, is_employed) %>%
-  summarize(UmploymentRateIndustry = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>%
   filter(indname != 'Military', indname != 'Other') %>% 
-  ggplot(aes(x = date_, y = UmploymentRateIndustry, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-EMP_INDUSTRY
+  group_by(date_, period_type, retail_v_other) %>%
+  summarize(UmploymentRateIndustry = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) 
+# %>%
+# 
+# ggplot(aes(x = date_, y = UmploymentRateIndustry, color = retail_v_other))+ geom_line()+
+# geom_vline(xintercept=as_date('2020-03-01'),
+#               color = "red", size=1)+
+# geom_vline(xintercept=as_date('2020-04-01'),
+#               color = "red", size=1)+
+#  theme(legend.position="right")
+# EMP_INDUSTRY
 
 ```
 
-```{r}
-##### METRO-PRE-COVID #####
+#### Retail v Other Industries (Overview)
+```{r, warning = FALSE, message = FALSE}
 
-EMP_Metro <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0)
-         , unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, METRO) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>%
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-EMP_Metro
+reg_df_vis %>%
+  mutate(cats2 = ifelse(indname=='Retail Trade', 'Retail', 'Other')) %>%
+  group_by(period_type, date_, cats2) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) 
+# %>%
+  # ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
+  # geom_vline(xintercept=as_date('2020-03-01'),
+  #               color = "red", size=1)+
+  # geom_vline(xintercept=as_date('2020-04-01'),
+  #               color = "red", size=1)+
+  #  theme(legend.position="right")
+```
+
+### Geographical
+```{r, warning = FALSE, message = FALSE}
+
+
+# unemp_by_region <- demo_data %>% 
+#   group_by(period_type, date_, REGION) %>%
+#   summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL)))
+# # %>% 
+#   # ggplot(aes(x = date_, y = UnemploymentRate, color = REGION))+ geom_line()+
+#   # geom_vline(xintercept=as_date('2020-03-01'),
+#   #               color = "red", size=1)+
+#   # geom_vline(xintercept=as_date('2020-04-01'), 
+#   #               color = "red", size=1)
+# 
+# 
+# EMP_REGION_PreCovid <- demo_data %>%
+#   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+#   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
+#   group_by(date_, period_type, REGION) %>%
+#   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL)))%>%  # ungroup
+  # ungroup() %>%  #need to pivot wider
+  # pivot_wider(1, names_from = "REGION", values_from = "UnemploymentRate")
+
+# ##### Construct chartS for Pre-covid unemployment by METRO, SUBURBAN, RURAL #####
+# EMPC <- demo_data %>%
+#   pivot_wider(1, names_from = "METRO", values_from = "UnemploymentRate") %>%
+#   ungroup() %>%
+#   e_charts(date_) %>%
+#   e_line(CityCenter, color="#333") %>%
+#   e_line(Other, color="blue") %>%
+#   e_line(Rural, color="green") %>%
+#   e_line(Suburb, color="orange") %>%
+#   e_tooltip(trigger = "axis")
+
+# EMPC_avg <- EMPC %>%
+#   group_by() %>%
+#   summarise(
+#     CityCenter = mean(CityCenter),
+#     Other = mean(Other),
+#     Rural = mean(Rural),
+#     Suburb = mean(Suburb)) %>%
+#   ungroup()
+# EMPC
+# 
+# EMPC_avg
+# #create a dataframe with values to chart
+# EMPC_avg_bar <- data.frame(
+#   names = c("CityCenter", "Other", "Rural", "Suburb"),
+#   values = c(0.0379, 0.0353, 0.0383, 0.0301))
+# 
+# ##### Employment average by CityCenter, Rural, Suburb #####
+# EMPC_avg_bar %>%
+#   e_charts(names) %>%
+#   e_bar(values)
+# 
+# ##### METRO-COVID #####
+# EMP_Metro_Covid <- demo_data %>%
+#   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+#   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
+#   group_by(METRO, period_type) %>%
+#   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>%
+#   ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
+#   geom_vline(xintercept=as_date('2020-03-01'),
+#                 color = "red", size=1)+
+#   geom_vline(xintercept=as_date('2020-04-01'),
+#                 color = "red", size=1)+
+#    theme(legend.position="right")
+# 
+# EMP_Metro <- demo_data %>%
+#   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+#   mutate(employed = ifelse(EMPSTAT <20, 1, 0)
+#          , unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
+#   group_by(date_, period_type, METRO) %>%
+#   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>%
+#   ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other))+ geom_line()+
+#   geom_vline(xintercept=as_date('2020-03-01'),
+#                 color = "red", size=1)+
+#   geom_vline(xintercept=as_date('2020-04-01'),
+#                 color = "red", size=1)+
+#    theme(legend.position="right")
+# EMP_Metro
+# 
+# ##### Construct chartS for COVID unemployment by METRO, SUBURBAN, RURAL #####
+# EMPMC <- EMP_Metro_Covid %>%
+#   ungroup()
+# 
+# EMPMC %>%
+#   e_charts(METRO) %>%
+#   e_bar(UnemploymentRate) %>%
+#   e_tooltip()
+# 
+# ##### Construct chartS for POST-COVID unemployment by METRO, SUBURBAN, RURAL #####
+# 
+# EMPMPC <- EMP_Metro_PostCovid %>%
+#   ungroup()
+# 
+# EMPMPC %>%
+#   e_charts(METRO) %>%
+#   e_bar(UnemploymentRate) %>%
+#   e_tooltip()
+# 
+# 
+# 
+# 
+# EMP_REGION_PreCovid <- EMP_REGION_PreCovid %>%  #need to pivot wider
+#   pivot_wider(1, names_from = "REGION", values_from = "UnemploymentRate")
+# 
+# # unemployment by region PRE-COVID line
+# EMP_REGION_PreCovid %>%
+#   ungroup() %>% # ungroup is needed after doing group_by()
+#   e_charts(date_) %>%
+#   e_line(Midwest) %>%
+#   e_line(Northeast) %>%
+#   e_line(South) %>%
+#   e_line(West, color="orange") %>%
+#   e_tooltip(trigger = "axis")
+# 
+# # mean unemployment pre-covid
+# EMPRPC <- EMP_REGION_PreCovid %>%
+#   group_by() %>%
+#   summarise(
+#     Midwest = mean(Midwest),
+#     Northeast = mean(Northeast),
+#     South = mean(South),
+#     West = mean(West))
+# 
+# #create dataframe for above values
+# EMP_REGION_PreCovid1 <- data.frame(
+#   REGION = c("Midwest", "Northeast", "South", "West"),
+#   UnemploymentRate = c(0.0339, 0.0344, 0.0324, 0.0362)
+# )
+# 
+# EMP_REGION_PreCovid1 %>%
+#   ungroup() %>%
+#   e_chart(REGION) %>%
+#   e_bar(UnemploymentRate)
+
+
 
 ```
 
+### Industry 
+```{r, warning = FALSE, message = FALSE}
 
-```{r}
-##### Construct chartS for Pre-covid unemployment by METRO, SUBURBAN, RURAL #####
-EMPC <- EMP_Metro %>%
-  pivot_wider(1, names_from = "METRO", values_from = "UnemploymentRate") %>% 
-  ungroup() %>% 
-  e_charts(date_) %>%
-  e_line(CityCenter, color="#333") %>%
-  e_line(Other, color="blue") %>%
-  e_line(Rural, color="green") %>%
-  e_line(Suburb, color="orange") %>%
-  e_tooltip(trigger = "axis")
-
-EMPC_avg <- EMPC %>%
-  group_by() %>%
-  summarise(
-    CityCenter = mean(CityCenter),
-    Other = mean(Other),
-    Rural = mean(Rural),
-    Suburb = mean(Suburb)) %>%
-  ungroup()
-EMPC
-
-EMPC_avg
-#create a dataframe with values to chart
-EMPC_avg_bar <- data.frame(
-  names = c("CityCenter", "Other", "Rural", "Suburb"),
-  values = c(0.0379, 0.0353, 0.0383, 0.0301))
-
-##### Employment average by CityCenter, Rural, Suburb #####
-EMPC_avg_bar %>%
-  e_charts(names) %>%
-  e_bar(values)
-
-##### METRO-COVID #####
-EMP_Metro_Covid <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(METRO, period_type) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-```
-
-```{r}
-##### Construct chartS for COVID unemployment by METRO, SUBURBAN, RURAL #####
-EMPMC <- EMP_Metro_Covid %>%
-  ungroup()
-
-EMPMC %>%
-  e_charts(METRO) %>%
-  e_bar(UnemploymentRate) %>%
-  e_tooltip()
-
-##### Construct chartS for POST-COVID unemployment by METRO, SUBURBAN, RURAL #####
-
-EMPMPC <- EMP_Metro_PostCovid %>%
-  ungroup()
-
-EMPMPC %>%
-  e_charts(METRO) %>%
-  e_bar(UnemploymentRate) %>%
-  e_tooltip()
-```
-
-``` {r}
-################# REGION #####
-##### REGION-PRE-COVID ####
-
-EMP_REGION_PreCovid <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, REGION) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL)))%>%  # ungroup
-  ungroup() %>%  #need to pivot wider
-  pivot_wider(1, names_from = "REGION", values_from = "UnemploymentRate")
+unemp_by_industry_retail <- demo_data %>% 
+  group_by(period_type, date_, retail_v_other) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL)))
+# %>% 
+  # ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other))+ geom_line()+
+  # geom_vline(xintercept=as_date('2020-03-01'),
+  #               color = "red", size=1)+
+  # geom_vline(xintercept=as_date('2020-04-01'), 
+  #               color = "red", size=1)
 
 ```
 
-```{r}
-###### Construct chartS for PRE-COVID unemployment by REGION ####
-
-
-EMP_REGION_PreCovid <- EMP_REGION_PreCovid %>%  #need to pivot wider
-  pivot_wider(1, names_from = "REGION", values_from = "UnemploymentRate")
-
-# unemployment by region PRE-COVID line
-EMP_REGION_PreCovid %>%
-  ungroup() %>% # ungroup is needed after doing group_by()
-  e_charts(date_) %>%
-  e_line(Midwest) %>%
-  e_line(Northeast) %>%
-  e_line(South) %>%
-  e_line(West, color="orange") %>%
-  e_tooltip(trigger = "axis")
-
-# mean unemployment pre-covid
-EMPRPC <- EMP_REGION_PreCovid %>%
-  group_by() %>%
-  summarise(
-    Midwest = mean(Midwest),
-    Northeast = mean(Northeast),
-    South = mean(South),
-    West = mean(West))
-
-#create dataframe for above values
-EMP_REGION_PreCovid1 <- data.frame(
-  REGION = c("Midwest", "Northeast", "South", "West"),
-  UnemploymentRate = c(0.0339, 0.0344, 0.0324, 0.0362)
-)
-
-EMP_REGION_PreCovid1 %>%
-  ungroup() %>%
-  e_chart(REGION) %>%
-  e_bar(UnemploymentRate)
-
-
-```
-
-```{r}
-##### REGION-COVID ####
-EMP_REGION_Covid <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, REGION) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-
-###### construct chart of unemployment by REGION for COVID ####
-
-EMP_REGION_Covid %>%
-  ungroup() %>%
-  e_chart(REGION) %>%
-  e_bar(UnemploymentRate)
-```
-
-```{r}
-
-
-########### RACE ################################################################################
+### Race
+```{r, warning = FALSE, message = FALSE}
 #### RACE PRE-COVID EMPLOYMENT ####
 EMP_RACE_Precovid <- demo_data %>%
   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
   group_by(indname, date_, period_type, RACE) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-```
-
-```{r}
-#### EMP AGGREGATE (SEX/AGE/GROUP) ####
-################ PRE-COVID AGG #################
-##### race #####
-EMP_AGG_Precovid_race <- demo_data %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, RACE) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-
-##### sex/race #####
-EMP_AGG_Precovid_sex_race <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, sex, RACE) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-head(EMP_AGG_Precovid_sex_race)
-##### sex/AgeGroup #####
-EMP_AGG_Precovid_sex_age <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, sex, AgeGroup) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-
-##### race/AgeGroup #####
-EMP_AGG_Precovid_race_age <- demo_data %>%
-  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
-  mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
-  group_by(date_, period_type, RACE, AgeGroup) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-
-```
-### Retail v Industries
-```{r}
-
-reg_df_vis %>% 
-  mutate(cats2 = ifelse(indname=='Retail Trade', 'Retail', 'Other')) %>% 
-  group_by(period_type, date_, cats2) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
-  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  geom_vline(xintercept=as_date('2020-03-01'), 
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)+
-   theme(legend.position="right")
-```
-
-
-
-```{r}
-head(demo_data)
+  summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) 
+# %>%
+#   # ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
+#   # geom_vline(xintercept=as_date('2020-03-01'),
+#   #               color = "red", size=1)+
+#   # geom_vline(xintercept=as_date('2020-04-01'),
+#   #               color = "red", size=1)+
+#   #  theme(legend.position="right")
 # 
+# 
+# 
+# unemp_by_race <- demo_data %>% 
+#   group_by(period_type, date_, RACE) %>%
+#   summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+#   ggplot(aes(x = date_, y = UnemploymentRate, color = RACE))+ geom_line()+
+#   geom_vline(xintercept=as_date('2020-03-01'),
+#                 color = "red", size=1)+
+#   geom_vline(xintercept=as_date('2020-04-01'), 
+#                 color = "red", size=1)
+# # + geom_smooth(method = 'lm')
+
+```
+
+### Age
+```{r, warning = FALSE, message = FALSE}
+
+unemp_by_age_group <- demo_data %>% 
+  group_by(period_type, date_, AgeGroup) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) 
+
+# %>% 
+#   ggplot(aes(x = date_, y = UnemploymentRate, color = AgeGroup))+ geom_line()+
+#   geom_vline(xintercept=as_date('2020-03-01'),
+#                 color = "red", size=1)+
+#   geom_vline(xintercept=as_date('2020-04-01'), 
+#                 color = "red", size=1)
+```
+
+
+
+# Regressions
+
+```{r, warning = FALSE, message = FALSE}
+head(demo_data)
+#
 # EMP_INDUSTRY <- demo_data %>%
 #   group_by(date_, indname, period_type) %>%
 #   summarize(UmploymentRateIndustry = 1- (weighted.mean(employed == 1, w = WTFINL))) %>%
 #   filter(indname != 'Military', indname != 'Other')
-reg_df <- demo_data %>% 
+reg_df <- demo_data %>%
   select(period_type
          , date_
          ## Measure
@@ -577,14 +518,14 @@ reg_df <- demo_data %>%
          , AGE, sex, RACE
   )
 summary(reg_df)
-reg1 <- reg_df %>% 
+reg1 <- reg_df %>%
   feols(is_employed~period_type, se = 'hetero')
-reg2 <- reg_df %>% 
+reg2 <- reg_df %>%
   feols(is_employed~period_type+ RACE, se = 'hetero')
-reg3 <- reg_df %>% 
+reg3 <- reg_df %>%
   feols(is_employed~period_type | RACE)
 etable(reg2, reg3)
-reg4 <- reg_df %>% 
+reg4 <- reg_df %>%
   feols(is_employed~period_type | AGE)
 reg5 <- reg_df %>%
   feols((is_employed~period_type*indname))
@@ -592,5 +533,71 @@ etable(reg1, reg2, reg3, reg4, reg5)
 
 ggplot(reg_df, aes(x = period_type, y = is_employed)) + geom_point() + geom_smooth(method = 'lm')
 
-``` 
+```
 
+
+
+
+
+<!-- ###################################################### -->
+<!-- ######### Should get covered by regressions #########  -->
+<!-- ###################################################### -->
+
+<!-- ```{r} -->
+<!-- #### EMP AGGREGATE (SEX/AGE/GROUP) #### -->
+<!-- ################ PRE-COVID AGG ################# -->
+<!-- ##### race ##### -->
+<!-- EMP_AGG_Precovid_race <- demo_data %>% -->
+<!--   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>% -->
+<!--   group_by(date_, period_type, RACE) %>% -->
+<!--   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% -->
+<!--   ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+ -->
+<!--   geom_vline(xintercept=as_date('2020-03-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--   geom_vline(xintercept=as_date('2020-04-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--    theme(legend.position="right") -->
+
+<!-- ##### sex/race ##### -->
+<!-- EMP_AGG_Precovid_sex_race <- demo_data %>% -->
+<!--   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>% -->
+<!--   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>% -->
+<!--   group_by(date_, period_type, sex, RACE) %>% -->
+<!--   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% -->
+<!--   ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+ -->
+<!--   geom_vline(xintercept=as_date('2020-03-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--   geom_vline(xintercept=as_date('2020-04-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--    theme(legend.position="right") -->
+<!-- head(EMP_AGG_Precovid_sex_race) -->
+<!-- ##### sex/AgeGroup ##### -->
+<!-- EMP_AGG_Precovid_sex_age <- demo_data %>% -->
+<!--   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>% -->
+<!--   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>% -->
+<!--   group_by(date_, period_type, sex, AgeGroup) %>% -->
+<!--   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) %>% -->
+<!--   ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+ -->
+<!--   geom_vline(xintercept=as_date('2020-03-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--   geom_vline(xintercept=as_date('2020-04-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--    theme(legend.position="right") -->
+
+<!-- ##### race/AgeGroup ##### -->
+<!-- EMP_AGG_Precovid_race_age <- demo_data %>% -->
+<!--   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>% -->
+<!--   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>% -->
+<!--   group_by(date_, period_type, RACE, AgeGroup) %>% -->
+<!--   summarize(UnemploymentRate = 1- (weighted.mean(employed == 1, w = WTFINL))) -->
+
+<!-- vtable(EMP_AGG_Precovid_race_age) -->
+<!-- %>% -->
+<!--   ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+ -->
+<!--   geom_vline(xintercept=as_date('2020-03-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--   geom_vline(xintercept=as_date('2020-04-01'), -->
+<!--                 color = "red", size=1)+ -->
+<!--    theme(legend.position="right") -->
+
+<!-- ``` -->
