@@ -244,38 +244,64 @@ reg_df_vis<- demo_data %>%
          , AGE, sex, RACE
   )
 
+## All industries unemployment rate over time
+unemp_time <- demo_data %>% 
+  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment (Retail v Other Industries)")+
+  theme(aspect.ratio=3/7)
+
+## All industries v retail unemployment rate over time
+unemp_retail_time <- demo_data %>% 
+  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, retail_v_other) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment (Retail v Other Industries)")+
+  theme(aspect.ratio=3/7)
 
 
-demo_data %>% 
-  group_by(date_, is_employed) %>%
-  mutate(employ  = n()) %>% 
-  ggplot(aes(x = date_, y = employ, color = is_employed))+ geom_area()+
-  geom_vline(xintercept=as_date('2020-03-01'),
-                color = "red", size=1)+
-  geom_vline(xintercept=as_date('2020-04-01'), 
-                color = "red", size=1)
+## limit x window for clarity
+unemp_time_skinny <- demo_data %>% 
+  filter(date_>=as_date('2020-01-01'),
+         date_<= as_date('2020-06-01')) %>% 
+  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment (Retail v Other Industries)")+
+  theme(aspect.ratio=3/7)
 
+unemp_time
 ```
 
 
 ### Industries 
 #### industry Overview
 ```{r, warning = FALSE, message = FALSE}
-EMP_INDUSTRY <- demo_data %>%
+unemp_industries <- demo_data %>% 
   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
   filter(indname != 'Military', indname != 'Other') %>% 
-  group_by(date_, period_type, retail_v_other) %>%
-  summarize(UmploymentRateIndustry = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) 
-# %>%
-# 
-# ggplot(aes(x = date_, y = UmploymentRateIndustry, color = retail_v_other))+ geom_line()+
-# geom_vline(xintercept=as_date('2020-03-01'),
-#               color = "red", size=1)+
-# geom_vline(xintercept=as_date('2020-04-01'),
-#               color = "red", size=1)+
-#  theme(legend.position="right")
-# EMP_INDUSTRY
+  group_by(date_, indname) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = indname)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment All Industries")+
+  theme(aspect.ratio=3/7, legend.position="none")
 
+unemp_industries
 ```
 
 #### Retail v Other Industries (Overview)
@@ -284,31 +310,45 @@ EMP_INDUSTRY <- demo_data %>%
 reg_df_vis %>%
   mutate(cats2 = ifelse(indname=='Retail Trade', 'Retail', 'Other')) %>%
   group_by(period_type, date_, cats2) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) 
-# %>%
-  # ggplot(aes(x = date_, y = UnemploymentRate, color = cats2))+ geom_line()+
-  # geom_vline(xintercept=as_date('2020-03-01'),
-  #               color = "red", size=1)+
-  # geom_vline(xintercept=as_date('2020-04-01'),
-  #               color = "red", size=1)+
-  #  theme(legend.position="right")
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL)))%>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = cats2)) + geom_line()+
+  geom_vline(xintercept=as_date('2020-03-01'), color = "black", size=.5)+
+  geom_vline(xintercept=as_date('2020-04-01'), color = "black", size=.5)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment (Retail v Other Industries)")+
+  theme(aspect.ratio=3/7)
+
 ```
 
 ### Geographical
 ```{r, warning = FALSE, message = FALSE}
 
+unemp_by_region <- demo_data %>% 
+  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, indname, REGION) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = REGION)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment All Industries")+
+  theme(aspect.ratio=3/7)
 
-# unemp_by_region <- demo_data %>% 
-#   group_by(period_type, date_, REGION) %>%
-#   summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL)))
-# # %>% 
-#   # ggplot(aes(x = date_, y = UnemploymentRate, color = REGION))+ geom_line()+
-#   # geom_vline(xintercept=as_date('2020-03-01'),
-#   #               color = "red", size=1)+
-#   # geom_vline(xintercept=as_date('2020-04-01'), 
-#   #               color = "red", size=1)
-# 
-# 
+unemp_by_metro <- demo_data %>% 
+  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, METRO) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = METRO)) + geom_line()+
+  theme(aspect.ratio=3/7, legend.position="none")
+
+unemp_by_metro
++
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment All Industries")+
+  theme(aspect.ratio=3/7, legend.position="none")
+unemp_by_metro
 # EMP_REGION_PreCovid <- demo_data %>%
 #   filter(EMPSTAT < 30 & EMPSTAT >= 10) %>%
 #   mutate(employed = ifelse(EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT > 20, 1, 0)) %>%
@@ -318,8 +358,9 @@ reg_df_vis %>%
   # pivot_wider(1, names_from = "REGION", values_from = "UnemploymentRate")
 
 # ##### Construct chartS for Pre-covid unemployment by METRO, SUBURBAN, RURAL #####
-# EMPC <- demo_data %>%
-#   pivot_wider(1, names_from = "METRO", values_from = "UnemploymentRate") %>%
+EMPC <- demo_data %>%
+  pivot_wider(1, names_from = "METRO", values_from = "UnemploymentRate")
+EMPC
 #   ungroup() %>%
 #   e_charts(date_) %>%
 #   e_line(CityCenter, color="#333") %>%
