@@ -205,16 +205,23 @@ reg1 <- reg_df %>%
 
 reg2 <- reg_df %>% 
   feols(is_employed~period_type+ RACE, se = 'hetero')
+
 reg3 <- reg_df %>% 
-  feols(is_employed~period_type | RACE)
-etable(reg2, reg3)
+  feols(is_employed~period_type + RACE)
+etable(reg1, reg2, reg3)
+
 reg4 <- reg_df %>% 
-  feols(is_employed~period_type | AGE)
+  feols(is_employed~period_type + AGE)
 
 reg5 <- reg_df %>%
   feols((is_employed~period_type*indname))
 
-etable(reg1, reg2, reg3, reg4, reg5)
+reg6 <- reg_df %>%
+  feols(is_employed~period_type+indname+RACE+AGE)
+
+
+etable(reg1, reg2, reg3, reg4, reg5, reg6)
+etable(reg)
 
 
 
