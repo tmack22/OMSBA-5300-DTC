@@ -11,8 +11,8 @@ library(dplyr)
 setwd('./Data/')
 industry_names <- read.csv('./indnames.csv') %>%
   mutate(Retail = case_when(
-    indname == 'Retail Trade' ~ 1,
-    indname != 'Retail Trade' ~ 0))
+    indname == 'Retail Trade' ~ TRUE,
+    indname != 'Retail Trade' ~ FALSE))
 
 data <- read_dta('./cps_00004.dta.gz')
 
@@ -26,7 +26,7 @@ df <- inner_join(data,industry_names,by= "ind") %>%
 
 
 filtered_df <- df %>% filter(cpsid > 0) %>%
-  filter(empstat <20) %>% #20 and above indicates they are unemployed/no looking
+  filter(empstat <20 & empstat >= 10) %>% #20 and above indicates they are unemployed/no looking
   group_by(year_month,indname) %>%
   mutate(n = n())
 
@@ -41,8 +41,13 @@ etable(reg1,reg2)
 
 reg3 <- feols(n~Retail + covid_active,data= summary)
 reg4 <- feols(log(n)~Retail + covid_active,data= summary)
-etable(reg3,reg4)
+reg5 <- feols(n~Retail,data= summary)
+reg6 <- feols(log(n)~Retail,data= summary)
+etable(reg3,reg4,reg5,reg6)
+etable(reg5)
 
+reg7 <- feols(n~ Retail*covid_active,data=summary)
+etable(reg7)
 wald(reg1)
 wald(reg2)
 wald(reg3)
