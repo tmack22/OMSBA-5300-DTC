@@ -41,7 +41,11 @@ industry_df <- filtered_df %>%
                ungroup()%>%
                group_by(industry)%>%
                mutate(percent_change = ((count-lag(count))/lag(count)*100))%>%
-               ggplot
+               mutate(percent_change = case_when(percent_change = is.na(percent_change) ~ 0,
+                                                 percent_change == is.na(percent_change) ~ 0,
+                                                 percent_change != is.na(percent_change) ~ percent_change))
+                                                  
+
 
 summary <- filtered_df %>%
   select(c("year_month","indname","covid_active","Industry","n")) %>%
