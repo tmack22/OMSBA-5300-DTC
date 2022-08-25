@@ -10,9 +10,9 @@ library(dplyr)
 
 setwd('./Data/')
 industry_names <- read.csv('./indnames.csv') %>%
-  mutate(Retail = case_when(
-    indname == 'Retail Trade' ~ TRUE,
-    indname != 'Retail Trade' ~ FALSE))
+  mutate(industry = case_when(
+    indname == 'Retail Trade' ~ 'Retail',
+    indname != 'Retail Trade' ~ 'Non-Retail'))
 
 data <- read_dta('./cps_00004.dta.gz')
 
@@ -25,14 +25,26 @@ df <- inner_join(data,industry_names,by= "ind") %>%
                                   year_month < '2020-3' ~ 0))
 
 
-filtered_df <- df %>% filter(cpsid > 0) %>%
+filtered_df <- df %>% filter(cpsidp > 0) %>%
   filter(empstat <20 & empstat >= 10) %>% #20 and above indicates they are unemployed/no looking
   group_by(year_month,indname) %>%
   mutate(n = n())
 
+industry_df <- filtered_df %>%
+               ungroup() %>%
+               select(c('industry','year_month',,'n')) %>%
+               distinct() %>%
+               group_by(industry,year_month) %>%
+               mutate(count = sum(n))%>%
+               select(-c(3))%>%
+               distinct() %>%
+               ungroup()%>%
+               group_by(industry)%>%
+               mutate(percent_change = ((count-lag(count))/lag(count)*100))%>%
+               ggplot
 
 summary <- filtered_df %>%
-  select(c("year_month","indname","covid_active","Retail","n")) %>%
+  select(c("year_month","indname","covid_active","Industry","n")) %>%
   distinct()
 
 reg1 <- feols(n~indname + covid_active ,data= summary)
