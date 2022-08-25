@@ -32,7 +32,7 @@ filtered_df <- df %>% filter(cpsidp > 0) %>%
 
 industry_df <- filtered_df %>%
                ungroup() %>%
-               select(c('industry','year_month',,'n')) %>%
+               select(c('industry','year_month','n')) %>%
                distinct() %>%
                group_by(industry,year_month) %>%
                mutate(count = sum(n))%>%
