@@ -58,39 +58,41 @@ Our analysis applies 3 main data sources:
 | `State` | State English name |
 
 
+# Assumptions & Conclusion
+We assumed that the number of jobs in an industry and money a family has to spend on items are equivalent within all industry categories.  This is not necessarily true as not all jobs are created equal in terms of amount of discretionary money a family has to spend on goods and services.  We've not taken into account household savings and debt rates from Jan 2019 through Dec 2021, and these factors play a role in discretionary income families have to spend.  In the future, we'd take into account and create faminly income on the monthly level and not just industry members of household worked in, but account for their job.  In retrospect, accounting for jobs within industries that can be performed from an employee's home would assist in identifying and quantifying how many earners moved from cities to suburbs or rural areas.  Cohort that relocated during the pandemic to suburbs, working in high-earninging occupations, present an opportunity for businesses to meet customers demands at different geographic locations.
+
 The below is in relation to the unemployment rate in Agriculture.
+
 | Industry |  % Change
-|:------    |:-------------------------------------------------     | 
-|`Arts,Entertainment,andRecreation,andAccommodationandFoodServices`                  | -%05.22 |
-|`Construction`                                                                      | -%00.95 |
-|`EducationalServices,andHealthCareandSocialAssistance`                            | %01.59 |
-|`FinanceandInsurance,andRealEstateandRentalandLeasing`                            | %02.37 |
-|`Information`                                                                     | %00.02 |
-|`Manufacturing`                                                                  | %00.81 |
-|`OtherServices,ExceptPublicAdministration`                                          | -%00.10 |
-|`Professional,Scientific,andManagement,andAdministrativeandWasteManagementServices` | %00.32 |
-|`PublicAdministration`                                                            | %03.07 |
-|`RetailTrade`                                                                 | -%00.66 |
-|`TransportationandWarehousing,andUtilities`                                         | -%00.13 |
-|`WholesaleTrade`                                                                  | %01.36 |
-|`period_typeCovid`                                                                  | -%00.81 |
-|`period_typePost_Covid`                                                            | -%2.92
+:------    |:-------------------------------------------------     | 
+`Arts,Entertainment,andRecreation,andAccommodationandFoodServices`                  | -%05.22 |
+`Construction`                                                                      | -%00.95 |
+`EducationalServices,andHealthCareandSocialAssistance`                              | %01.59 |
+`FinanceandInsurance,andRealEstateandRentalandLeasing`                              | %02.37 |
+`Information`                                                                       | %00.02 |
+`Manufacturing`                                                                     | %00.81 |
+`OtherServices,ExceptPublicAdministration`                                          | -%00.10 |
+`Professional,Scientific,andManagement,andAdministrativeandWasteManagementServices` | %00.32 |
+`PublicAdministration`                                                              | %03.07 |
+`RetailTrade`                                                                       | -%00.66 |
+`TransportationandWarehousing,andUtilities`                                         | -%00.13 |
+`WholesaleTrade`                                                                    | %01.36 |
+`period_typeCovid`                                                                  | -%00.81 |
+`period_typePost_Covid`                                                             | -%2.92
 
 
 ## Load Libraries
 ```{r, warning = FALSE, message = FALSE}
-# Load Relevent Libraries
+# Load Relevant Libraries
 library(ipumsr)  
 library(dplyr)
 library(tidyverse)
-library(jtools)
 library(vtable)
 library(lubridate)
 library(haven)
 library(fixest)
 library(ggplot2)
 library(formattable)
-library(echarts4r)
 library(ggplot2)
 ```
 
@@ -128,6 +130,7 @@ DF <- dem_data %>%
   left_join(state_fips, by = 'STATEFIP') %>% # 3.9 million observations
   ## Join in industry categories
   left_join(Industries, by = 'IND')
+
 #### DEMOGRAPHICS DATAFRAME ####
 demo_data <- DF %>%
   mutate(EmploymentStatus = case_when(
@@ -201,7 +204,7 @@ demo_data <- DF %>%
     WHYUNEMP == 5 ~ 'ReEnterLaborForce',
     WHYUNEMP == 6 ~ 'FirstJob',
     WHYUNEMP == 0 ~ 'Military')) %>%
-  mutate(employed = ifelse(EMPSTAT >= 10 & EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT >= 20 & EMPSTAT<= 22, 1, 0)) %>% # In here twice!!!, I updated the conditions to match IPUMS EMPSTAT definitions. 
+  mutate(employed = ifelse(EMPSTAT >= 10 & EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT >= 20 & EMPSTAT<= 22, 1, 0)) %>%  
   mutate(is_employed = ifelse(EMPSTAT>=10 & EMPSTAT<20, TRUE, FALSE)) %>%  
   mutate(retail_v_other = ifelse(indname=='Retail Trade', 'Retail', 'Other') ## flag if industry == Retail
   )%>% 
@@ -235,6 +238,8 @@ reg_df_vis<- demo_data %>%
   )
 ```
 
+
+
 ```{r, warning = FALSE, message = FALSE}
 ## All industries unemployment rate over time
 unemp_time <- demo_data %>% 
@@ -245,7 +250,7 @@ unemp_time <- demo_data %>%
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
   scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
   labs(x = "Survey Date", y = "Unemployment Rate",
-    title ="Unemployment By Industry")+
+    title ="Unemployment - All Industry")+
   theme(aspect.ratio=3/7)
 unemp_time
 
@@ -398,17 +403,15 @@ etable(reg1, reg1a)
 
 -controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 1.36% increase within Wholesale Trade Industry.
 
-'''
+```{r}
 reg2 <- feols(is_employed~indname + period_type, se = 'hetero', data = reg_df)
 etable(reg2)
-
 ```
+
 Interpretation reg2- note:summary table above in findings.
 -controlling for period_tyep[pre-covid(1/2019-2/2020), covid(3/2020), and post covid(4/2020-12/2021)] and relative to agricultural industry, a one-unit change in industry employment is associated with a -5.22% decrease within the Entertainment and Recreation industry.
  
 -controlling for period_tyep[pre-covid(1/2019-2/2020), covid(3/2020), and post covid(4/2020-12/2021)] and relative to agricultural industry, a one-unit change in industry employment is associated with a -.66% decrease within the Retail Trade industry.
  
 -controlling for period_tyep[pre-covid(1/2019-2/2020), covid(3/2020), and post covid(4/2020-12/2021)] and relative to agricultural industry, a one-unit change in industry employment is associated with a -.13% decrease within the Transportation & warehousing industry.
-
-# Assumptions
-We assumed that the number of jobs in an industry and money a family has to spend on items are equivalent within all industry categories.  This is not necessarily true as not all jobs are created equal in terms of amount of discretionary money a family has to spend on goods and services.  We've not taken into account household savings and debt rates from Jan 2019 through Dec 2021, and these factors play a role in discretionary income families have to spend.  In the future, we'd take into account and create faminly income on the monthly level and not just industry members of household worked in, but account for their job.  In retrospect, accounting for jobs within industries that can be performed from an employee's home would assist in identifying and quantifying how many earners moved from cities to suburbs or rural areas.  Cohort that relocated during the pandemic to suburbs, working in high-earninging occupations, present an opportunity for businesses to meet customers demands at different geographic locations.  
+  
