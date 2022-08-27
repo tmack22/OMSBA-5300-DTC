@@ -76,7 +76,7 @@ industry_df %>%
        title= "Employment Percentage Change by Industry")
 
 
-summary <- filtered_df %>%
+q2_reg_df <- filtered_df %>%
   ungroup()%>%
   group_by(date,industry_cat)%>%
   mutate(avg_employment = mean(emp_count))%>%
@@ -96,8 +96,8 @@ reg2 <- feols(emp_count~industry_cat,se='hetero',data= filtered_df)
 reg2.1 <- feols(emp_count~industry_cat*covid_active,se='hetero',data= filtered_df)
 etable(reg2,reg2.1)
 
-reg3 <- feols(employment_change~industry_cat,se= 'hetero',data= summary)
-reg3.1 <- feols(employment_change~industry_cat*covid_active,se= 'hetero',data= summary)
+reg3 <- feols(employment_change~industry_cat,se= 'hetero',data= q2_reg_df)
+reg3.1 <- feols(employment_change~industry_cat*covid_active,se= 'hetero',data= q2_reg_df)
 etable(reg3,reg3.1)
 #
 
