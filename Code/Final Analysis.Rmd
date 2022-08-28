@@ -38,12 +38,12 @@ library(dplyr)
 library(vtable)
 library(ipumsr)  
 library(ggplot2)
+library(huxtable)
 ```
 
 **Raw Data**:
 ```{r message=FALSE, warning=FALSE}
 #Question 1 Dataloads
-getwd()
 
 q1_employment <- read_dta('Q1.dta.zip') 
 covid_history <- read_csv('covid_history.csv') 
@@ -66,7 +66,7 @@ state_fips <- read_csv('state-geocodes-v2021.csv') %>%
   rename(State = Name)
   #select(STATEFIP, State)
 ###### read in IPUMS demographic data from
-dem_ddi <- read_ipums_ddi("Q3.xml")
+dem_ddi <- read_ipums_ddi("cps_00016.xml")
 dem_data <- read_ipums_micro(dem_ddi) %>% 
   zap_labels() %>%  
   mutate(
@@ -84,7 +84,7 @@ dem_data <- read_ipums_micro(dem_ddi) %>%
   )
 
 ```
-
+###Setting up Functions to be help with Data Wrangling
 ```{r include=FALSE}
 class_conversion <- function(df, x, y){
   'str_prefix' = x
@@ -96,26 +96,26 @@ class_conversion <- function(df, x, y){
 
 ```{r}
 #Q1 Data Wrangling
-t_emp <- b_emp %>% filter(!(whyunemp == 0)) %>%
+t_emp <- q1_employment %>% filter(!(whyunemp == 0)) %>%
   filter(occ2010 %in% c(4700:5790)) %>% 
   filter(whyunemp %in% c(1,2,3)) %>% 
   class_conversion(c('month', 'durunemp', 'statefip'), as.numeric) %>% 
   class_conversion(c('occ', 'covidunaw', 'whyunemp'), as.factor) %>% 
   select(-'serial')
 
-t_state_lockdowns <- b_state_lockdowns %>% 
+t_state_lockdowns <- state_lockdowns %>% 
   mutate(lockdown_start = mdy(lockdown_start))
 
 ### covid history data
-state_name_key <- read.csv('./state_names.csv')
+state_name_key <- read.csv('state_names.csv')
 
 state_name_key <- state_name_key %>% select(-'Abbrev') 
 
 names(state_name_key)[2] <- 'Code' 
 
-names(b_covid_history)[2] <- 'Code' 
+names(covid_history)[2] <- 'Code' 
 
-t_covid_history <- b_covid_history %>%
+t_covid_history <- covid_history %>%
   left_join(state_name_key, 'Code')%>% 
   mutate(date = mdy(date)) 
 
@@ -134,14 +134,14 @@ exp_emp <- t_emp %>%
 
 #Q2 Data Wrangling
 ###Joining the initial data read with the industry_name dataframe
-df <- inner_join(data,industry_names,by= "ind") %>%
+q2_df <- left_join(q2_data,industry_names,by= "ind") %>%
   mutate(cpsid = format(cpsid,scientific= FALSE)) %>%
   mutate(cpsidp = format(cpsidp,scientific= FALSE)) %>%
   mutate(date = as_date(paste(year, month, '01', sep = '-'))) %>%
   mutate(covid_active = case_when(date >= '2020-03-01' ~ 1,
                                   date < '2020-03-01' ~ 0))
 ###Filtering for employed and cpsidp's that are not zero
-filtered_df <- df %>% filter(cpsidp > 0) %>%
+filtered_df <- q2_df %>% filter(cpsidp > 0) %>%
   filter(empstat <20 & empstat >= 10) %>% #20 and above indicates they are unemployed/no looking
   group_by(date,indname) %>%
   mutate(emp_count = n())
@@ -182,12 +182,10 @@ industry_cat_df <- filtered_df %>%
 
 #Q3 Data Wrangling
 ### JOIN FILES INTO ONE ####
-Q3_DF <- dem_data %>% 
-  ## Join in geographic info
-  left_join(state_fips, by = 'STATEFIP') %>% # 3.9 million observations
-  ## Join in industry categories
-  left_join(industry_names, by = 'ind')
-
+Q3_DF <- left_join(dem_data,state_fips, by = 'STATEFIP') %>% # 3.9 million observations
+         left_join(industry_names, by= c('IND'= 'ind')) ## Join in industry categories
+  
+  
 #### DEMOGRAPHICS DATAFRAME ####
 demo_data <- Q3_DF %>%
   mutate(EmploymentStatus = case_when(
