@@ -3,5 +3,5 @@
 
 if (!require("ipumsr")) stop("Reading IPUMS data into R requires the ipumsr package. It can be installed using the following command: install.packages('ipumsr')")
 
-ddi <- read_ipums_ddi("cps_00016.xml")
+ddi <- read_ipums_ddi("Q3.xml")
 data <- read_ipums_micro(ddi)
