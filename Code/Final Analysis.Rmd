@@ -562,6 +562,7 @@ etable(reg2,reg2.1)
 reg3 <- feols(employment_change~industry_cat,se= 'hetero',data= q2_reg_df)
 reg3.1 <- feols(employment_change~industry_cat*covid_active,se= 'hetero',data= q2_reg_df)
 etable(reg3,reg3.1)
+
 ```
 
 #Question 3 Analysis
