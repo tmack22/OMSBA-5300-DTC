@@ -1,8 +1,7 @@
 ---
-title: 1. How has COVID affected the health of the retail industry, as measured by
-  employment?
-author: "Jomaica Alfiler"
-date: "8/14/2022"
+title: OMSBA 5300 Summer 2022 - Data Translation Challenge
+author: "Jomaica Alfiler, Jill Thompson, Taylor Mack, Erik Campbell, Kristen Higashi"
+date: "8/27/2022"
 output: html_document
 ---
 
@@ -10,10 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-The following analysis attempts to determine how COVID-19 affected the retail industry's health and retail unemployment is used as a measure of industry health in this analysis. The assumption is that a healthy retail industry has a consistent flow of revenue, allowing it to keep a consistent sized employee pool. An unhealthy industry would be characterized by a high rate of layoffs as retail revenues decline, forcing retailers to minimize losses by reducing employee-related operational costs.
+The following analysis attempts to determine how COVID-19 affected the retail industry's health, with retail unemployment used as a measure of industry health. The assumption is that a healthy retail industry has a consistent flow of revenue, allowing it to keep a consistent sized employee pool. An unhealthy industry would be characterized by a high rate of layoffs as retail revenues decline, forcing retailers to minimize losses by reducing employee-related operational costs.
 
-
-### How Did COVID Impact Unemployment? 
 
 [IPMUS employment data](https://cps.ipums.org/cps/index.shtml) was used in this analysis, with sample dates ranging from January 2019 to January 2021. The following variables were used:
 
@@ -25,6 +22,7 @@ The following analysis attempts to determine how COVID-19 affected the retail in
 | `whyunemp` | specifies why respondents were unemployed |            |
 | `occ2010`  | respondent's occupation based on the Census Bureau's scheme |
 | `covidunaw` | could respondent's unemployment be attributed to COVID-19 |
+| `cases` | total covid cases |
 | `lockdown_start` | stay at home implemented lock down by government |
 
 
@@ -35,39 +33,732 @@ library(vtable)
 library(haven)
 library(lubridate)
 library(estimatr)
+library(fixest)
+library(dplyr)
+library(vtable)
+library(ipumsr)  
+library(ggplot2)
 ```
 
 **Raw Data**:
 ```{r message=FALSE, warning=FALSE}
-q1_employment <- read_dta('cps_00001.dta') 
-covid_history <- read_csv('covid_history.csv') 
-state_lockdowns <- read_csv('state_lockdowns.csv')
-state_names <- read_csv('state_names.csv')
-timeline <- read_csv('timeline.csv')
+#Question 1 Dataloads
+q1_employment <- read_dta('./cps_00001.dta') 
+covid_history <- read_csv('./covid_history.csv') 
+state_lockdowns <- read_csv('./state_lockdowns.csv')
+state_names <- read_csv('./state_names.csv')
+timeline <- read_csv('./timeline.csv')
+
+#Question 2 Dataloads
+industry_names <- read.csv('./indnames.csv') %>%
+  mutate(industry_cat = case_when(
+    indname == 'Retail Trade' ~ 'Retail',
+    indname != 'Retail Trade' ~ 'Non-Retail'))
+q2_data <- read_dta('./cps_00004.dta.gz')
+
+#Question 3 Dataloads
+
+###### Read in State Federal Information Processing Codes. ######  
+state_fips <- read_csv('state-geocodes-v2021.csv') %>%
+  filter(!is.na(Region)) %>%
+  rename(State = Name)
+  #select(STATEFIP, State)
+###### read in IPUMS demographic data from
+dem_ddi <- read_ipums_ddi("cps_00016.xml")
+dem_data <- read_ipums_micro(dem_ddi) %>% 
+  zap_labels() %>%  
+  mutate(
+    month_digit= case_when( 
+      nchar(str_trim(as.character(MONTH))) ==1 ~ (paste('0',str_trim(as.character(MONTH)), sep = '')),
+      nchar(str_trim(as.character(MONTH))) ==2 ~ (str_trim(as.character(MONTH))), 
+      TRUE ~ 'WRONG'
+    )
+    , date_ = as_date(paste(YEAR, month_digit, '01', sep = '-'))
+    , period_type = as_factor(case_when(
+      date_ < '2020-03-01' ~'Pre_Covid', 
+      date_ >= '2020-03-01' & date_ < '2020-04-01' ~'Covid', 
+      date_ >= '2020-04-01' ~'Post_Covid'
+    ))
+  )
+
 ```
 
-**Analysis**:
+```{r include=FALSE}
+class_conversion <- function(df, x, y){
+  'str_prefix' = x
+  'new_class' = y
+  df %>% mutate(across(starts_with(str_prefix), new_class))
+}
+```
 
-to-do:
 
-* first plot a graph of the total reported unemployment per month:
+```{r}
+#Q1 Data Wrangling
+t_emp <- b_emp %>% filter(!(whyunemp == 0)) %>%
+  filter(occ2010 %in% c(4700:5790)) %>% 
+  filter(whyunemp %in% c(1,2,3)) %>% 
+  class_conversion(c('month', 'durunemp', 'statefip'), as.numeric) %>% 
+  class_conversion(c('occ', 'covidunaw', 'whyunemp'), as.factor) %>% 
+  select(-'serial')
 
-  + narrow the date range from November 2020 to January 2021, focusing on the time when COVID-19 became a prominent news item.
+t_state_lockdowns <- b_state_lockdowns %>% 
+  mutate(lockdown_start = mdy(lockdown_start))
+
+### covid history data
+state_name_key <- read.csv('./state_names.csv')
+
+state_name_key <- state_name_key %>% select(-'Abbrev') 
+
+names(state_name_key)[2] <- 'Code' 
+
+names(b_covid_history)[2] <- 'Code' 
+
+t_covid_history <- b_covid_history %>%
+  left_join(state_name_key, 'Code')%>% 
+  mutate(date = mdy(date)) 
+
+### employment data
+exp_emp <- t_emp %>% 
+  na.omit()%>%
+  mutate(survey_dates = ymd(paste0(year, '-', month, '-01')))%>%
+  group_by(year, month, statefip) %>% 
+  mutate(layoff = ifelse(whyunemp == 1,1,0), # if reason is layoff = 1, if not = 0
+         other_type_loss = ifelse(whyunemp == 2,1,0), 
+         temp_emp = ifelse(whyunemp == 3,1,0),
+         covidunaw=ifelse(covidunaw==1,1,0))%>% 
+  mutate(covid_impact_no = ifelse(covidunaw == 0,1,0), 
+         covid_impact_yes = ifelse(covidunaw == 1,1,0))%>% 
+  left_join(t_state_lockdowns, 'statefip')
+
+#Q2 Data Wrangling
+###Joining the initial data read with the industry_name dataframe
+df <- inner_join(data,industry_names,by= "ind") %>%
+  mutate(cpsid = format(cpsid,scientific= FALSE)) %>%
+  mutate(cpsidp = format(cpsidp,scientific= FALSE)) %>%
+  mutate(date = as_date(paste(year, month, '01', sep = '-'))) %>%
+  mutate(covid_active = case_when(date >= '2020-03-01' ~ 1,
+                                  date < '2020-03-01' ~ 0))
+###Filtering for employed and cpsidp's that are not zero
+filtered_df <- df %>% filter(cpsidp > 0) %>%
+  filter(empstat <20 & empstat >= 10) %>% #20 and above indicates they are unemployed/no looking
+  group_by(date,indname) %>%
+  mutate(emp_count = n())
+
+###Creating a dataframe that will be used to graph the dataset to compare retail vs non-retail
+industry_df <- filtered_df %>%
+  ungroup() %>%
+  select(c('indname','year','date','covid_active','emp_count')) %>%
+  distinct() %>%
+  group_by(indname,date) %>%
+  mutate(count = sum(emp_count))%>%
+  select(-c(5))%>%
+  distinct() %>%
+  ungroup()%>%
+  group_by(indname)%>%
+  mutate(percent_change = ((count-lag(count))/lag(count)))%>%
+  mutate(percent_change = case_when(
+    percent_change = is.na(percent_change) ~ 0,
+    percent_change == is.na(percent_change) ~ 0,
+    percent_change != is.na(percent_change) ~ percent_change))
+
+###Creating a dataframe that will be used to graph the dataset to compare retail vs non-retail
+industry_cat_df <- filtered_df %>%
+               ungroup() %>%
+               select(c('industry_cat','year','date','covid_active','emp_count')) %>%
+               distinct() %>%
+               group_by(industry_cat,date) %>%
+               mutate(count = sum(emp_count))%>%
+               select(-c(5))%>%
+               distinct() %>%
+               ungroup()%>%
+               group_by(industry_cat)%>%
+               mutate(percent_change = ((count-lag(count))/lag(count)))%>%
+               mutate(percent_change = case_when(
+                 percent_change = is.na(percent_change) ~ 0,
+                 percent_change == is.na(percent_change) ~ 0,
+                 percent_change != is.na(percent_change) ~ percent_change))
+
+#Q3 Data Wrangling
+### JOIN FILES INTO ONE ####
+Q3_DF <- dem_data %>% 
+  ## Join in geographic info
+  left_join(state_fips, by = 'STATEFIP') %>% # 3.9 million observations
+  ## Join in industry categories
+  left_join(industry_names, by = 'ind')
+
+#### DEMOGRAPHICS DATAFRAME ####
+demo_data <- Q3_DF %>%
+  mutate(EmploymentStatus = case_when(
+    EMPSTAT <= 1 | EMPSTAT >= 30 ~  'Other',
+    EMPSTAT >= 10 & EMPSTAT < 20 ~ '1',
+    EMPSTAT >= 20 & EMPSTAT < 30 ~ '0')) %>%
+  mutate(sex = case_when(
+    SEX == 1 ~  'male',
+    SEX == 2 ~ 'female')) %>%
+  mutate(MARST = case_when(
+    MARST == 1 ~ 'Married',
+    MARST != 1 ~ 'Single')) %>%
+  mutate(RACE = case_when(
+    HISPAN == '0' & RACE == '100' ~ 'White',
+    HISPAN == '0' & RACE == '200' ~ 'Black',  
+    HISPAN == '0' & RACE == '300' ~ 'AmericanIndian',
+    HISPAN == '0' & RACE %in% c('650', '651', '652') ~ 'Asian',
+    HISPAN == '0' & !(RACE %in% c('100', '200', '300', '650', '651', '652')) ~ 'MixedRace',
+    HISPAN != '0' ~ 'Latino')) %>%
+  mutate(AgeGroup = case_when(
+    AGE < 20 ~ 'under20',
+    AGE >= 20 & AGE < 30 ~ '20to29',
+    AGE >= 30 & AGE < 40 ~ '30to39',
+    AGE >= 40 & AGE < 50 ~ '40to49',
+    AGE >= 50 & AGE < 60 ~ '50to59',
+    AGE >= 60 & AGE <= 65 ~ '60to65',
+    AGE >= 65 ~ 'RetirementAge')) %>%
+  mutate(REGION = case_when(
+    REGION == 11 | REGION == 12 ~ 'Northeast',
+    REGION == 21 | REGION == 22 ~ 'Midwest',
+    REGION == 31 | REGION == 32 |  REGION == 33 ~ 'South',
+    REGION == 41 | REGION == 42 ~ 'West',
+    REGION == 97 ~ 'Unknown')) %>%
+  mutate(METRO = case_when (
+    METRO %in% c(0, 4) ~  'Other',
+    METRO == 1 ~  'Rural',
+    METRO == 2 ~  'CityCenter',
+    METRO == 3 ~  'Suburb')) %>%
+  mutate(Education = case_when(
+    EDUC99 == 00 ~ 'Unknown',
+    EDUC99 >= 1 & EDUC99 <=9 ~ 'NoDiploma',
+    EDUC99 == 10 ~ 'HighSchoolDiploma',
+    EDUC99 == 11 ~ 'SomeCollege',
+    EDUC99 >= 12 & EDUC99 <= 14 ~  'AssociateDegree',
+    EDUC99 == 15 ~ 'Bachelors',
+    EDUC99 == 16 ~ 'Masters',
+    EDUC99 > 16 ~ 'PhDProfessional')) %>%
+  mutate(LaborForce = case_when(
+    LABFORCE == 0  ~ 'Military',
+    LABFORCE == 1  ~ '0',
+    LABFORCE == 2  ~ '1')) %>%
+  mutate(WorkStatus = case_when(
+    WKSTAT %in% c(11, 14, 15) ~ 'FullTime',
+    WKSTAT %in% c(12, 20, 21, 22, 40, 41) ~ 'PartTime',
+    WKSTAT == 13 ~ 'FullTimeNoWork',
+    WKSTAT == 42 ~ 'PartTimeNoWork',
+    WKSTAT == 50 ~ 'NoWorkSeekingFullTime',
+    WKSTAT == 60 ~ 'NoWorkSeekingPartTime',
+    WKSTAT == 99 ~ 'MilitaryNoLaborForce',)) %>%
+  mutate(FamilyIncome =case_when(                        
+    FAMINC <= 600 ~ '<$25k_FPL_Familyof4',
+    FAMINC > 600 & FAMINC <= 740 ~ '25k-50K',
+    FAMINC > 740 & FAMINC <= 830 ~ '50k-75k',
+    FAMINC > 830 & FAMINC <= 841~ '75k-100k',
+    FAMINC == 842  ~ '100k - 150k',
+    FAMINC == 843 ~ '150k+',
+    FAMINC == 999 ~ 'NA')) %>%
+  mutate(WHYUNEMP = case_when(
+    WHYUNEMP <= 3 ~ 'LostJob',
+    WHYUNEMP == 4 ~ 'Quit',
+    WHYUNEMP == 5 ~ 'ReEnterLaborForce',
+    WHYUNEMP == 6 ~ 'FirstJob',
+    WHYUNEMP == 0 ~ 'Military')) %>%
+  mutate(employed = ifelse(EMPSTAT >= 10 & EMPSTAT <20, 1, 0), unemployed = ifelse(EMPSTAT >= 20 & EMPSTAT<= 22, 1, 0)) %>%  
+  mutate(is_employed = ifelse(EMPSTAT>=10 & EMPSTAT<20, TRUE, FALSE)) %>%  
+  mutate(retail_v_other = ifelse(indname=='Retail Trade', 'Retail', 'Other') ## flag if industry == Retail
+  )%>% 
+  filter(EMPSTAT < 30 & EMPSTAT >= 10) %>% 
+  mutate_if(is.character, as.factor) %>%
+  unite(HHID, HRHHID, HRHHID2) %>%
+  drop_na(indname) %>%  # Dropping N/A's in indname as NIU's in military.
+  select(date_, YEAR, MONTH, HHID, PERNUM, EMPSTAT, is_employed, employed, unemployed, CPSID, CPSIDP
+          , HWTFINL, WTFINL, FAMINC, REGION, METRO, AGE, AgeGroup, SEX, sex
+          , RACE, MARST, IND, WHYUNEMP, AgeGroup, Education, LaborForce
+          , EmploymentStatus, WorkStatus, FamilyIncome, indname, retail_v_other, State, period_type)
+
+```
+
+### Varibale Analysis
+
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `whyunemp` = "rationale" | this variable is categorized into a "rationale" with reasons being: **"Laid Off"**, **"Other"** and **"Temporary Employment"** which specifies why respondents were unemployed |
+| `covidunaw` = "covid_impact" | could respondent's unemployment be attributed to COVID-19. This was categorized into `covid_impact_yes` and `covid_impact_no`. |
+
+
+Unemployment from our data was categorized into three "rationale": 
+Laid Off, Temporary Employment, and Other.
+In which we wanted to look at whether there was an increase of unemployment 
+in one category over the others. 
+
+
+From this graph, our results shows that there was an increase in unemployment 
+right around when COVID-19 cases came to the US - which was in March, with a peak in April. 
+We also identified that the majority of unemployment came from workers who were "Laid Off". 
+We also see minimal impact of unemployment for "Temporary workers". 
+Finally, at the end of 2020, we see that those who are unemployed for "Other" reasons had an increase 
+and becomes the majority reason over being laid off. 
+
+```{r}
+sum_by_why <- t_emp %>%
+  mutate(date = ymd(paste0(year, '-', month, '-01'))) %>% 
+  dplyr::count(date, whyunemp) %>%
+  filter(date >= "2019-12-01")
+
+plot_by_why <- sum_by_why %>%
+  ggplot(aes(x = date, y = n, fill = factor(whyunemp))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  theme(legend.position="bottom") + 
+  xlab("Month") +
+  ylab("Number of People") +
+  ggtitle('Figure 1. Types of Unemployment by Month')+
+  scale_fill_manual(values=c("#CC6666", "#9999CC", "#66CC99"), name = "Reason for Unemployment: ",
+                      labels=c("Laid Off", "Other", "Temporary Employment"))
+plot_by_why
+```
+
+We also plotted the total number of unemployment cases reported and if the reason was COVID related. From this graph, we can see that the majority of unemployment reported in this time frame is due to COVID.
+
+From this graph, we can see that COVID was the majority reason for why there was unemployment. 
+The "Not Reason For" category does not appear to have been effected much when looking at data in 
+the last two months of 2019. 
+
+```{r}
+sum_unemp <- t_emp %>%
+  na_if(99) %>%
+  mutate(date = ymd(paste0(year, '-', month, '-01'))) %>% 
+  dplyr::count(date, covidunaw) %>%
+  filter(covidunaw %in% c(NA, 1, 2)) %>%
+  filter(date >= "2019-11-01") %>% 
+  mutate_all(funs(ifelse(is.na(.), 0, .)))
+
+plot_total <- ggplot(data = sum_unemp, aes(x = date, y = n, fill = factor(covidunaw))) +
+  geom_bar(position = "stack", stat = "identity") +
+  scale_fill_manual(name = "Covid Unemployment: ",
+                      labels = c("Not Recorded", "Not Related", "COVID Related"),
+                      values = c('gray', "steel blue", "red")) +
+  theme(legend.position="bottom") +
+  ggtitle('Figure 2. Covid-19 Attributed Unemployment by Month')
+plot_total
+```
+
+Seeing the spike in unemployment at the beginning of 2020 in Figure 1. above and Figure 2., we established an initial hypothesis that COVID-19 measures imposed to reduce the spread of the disease were negatively impacting the retail industry’s health. Primarily, we looked at lockdown orders:
+
+**H0** = As measured by unemployment, COVID had no impact on retail industry health. (*Key*: COVID had no impact.)
+
+**H1** = Retail industry health was affected by COVID related measures, specifically stay at home orders. (*Key*: COVID related measures: lock downs.)
+
+
+The following regression model assessed if there was a relationship between Lockdown start dates, covid related unemployment and retail layoffs. The model included a LSDV factor for states to provide a fixed effect control for collective variables such as politics, which could have influenced COVID-19 government policy implementation during that time.
+```{r}
+# Regression
+
+# model of state lockdown order start dates, impact of covid on unemployment, state and layoffs.
+m1_state_closure_layoff <- lm_robust(layoff ~ lockdown_start + covid_impact_yes + factor(state), data = exp_emp)
+
+# Find any relationship from model 1.
+export_summs(m1_state_closure_layoff, model.names = 'Covid Related Unemployment v.\nLayoffs v. Lockdown')
+```
+In the first model, you can see that lock down orders had a significant relationship between layoffs, lockdowns and COVID related unemployment due to the states being factored. This is because some states remained open, while some didn't which could explain why there was high rates of unemployment due to the states being closed down. 
+To better understand what may have led to this relationship, we have decided to factor out the states. 
+For this analysis to occur we are assuming that lock down orders did not have an effect on unemployment. 
+
+```{r}
+# 2nd Regression.
+
+# model of state lockdown order start dates, impact of covid on unemployment, and layoffs.
+m2_state_closure_layoff <- lm_robust(layoff ~ lockdown_start + covid_impact_yes, data = exp_emp)
+
+# Find any relationship from model 1.
+export_summs(m2_state_closure_layoff, model.names = 'Covid Related Unemployment v.\nLayoffs v. Lockdown')
+```
+The model did not show a statistically significant relationship between the lock down start dates, layoffs and COVID related unemployment. This is hardly surprising given that layoffs began to reduce shortly after the first government lock down orders were issued on March 18th, 2020, as seen by the plot. The IPMUS variable "covid_impact" exhibits this tendency as well (see above). Beginning in April 2020, IPUMS began asking respondents if their unemployment was due to COVID. This statistic also fell, mirroring the drop in unemployment caused by layoffs following the first lock down. Furthermore, lockdown orders does not appear to have had a negative impact on the retail sector. Thus, we fail to reject our null and cannot accept the alternative hypothesis.
+
+---
+## Additional analysis
+Next, we decided to look at the data using unemployment rates within the data as our metric (rather than number of layoffs).
+
+```{r message=FALSE, warning=FALSE}
+employment_data <- read_dta('cps_00010.dta')
+
+states <- read_csv('state_codes.csv')
+```
+
+Filter for only desired employment variables and values:
+
+  `empstat`:  Values between 10 and 29 relate to people in the labor market.
+  `ind`:  Values between 4670 and 5790 indicate the retail industry
   
+```{r message=FALSE, warning=FALSE}
+t_employment <- employment_data %>% 
+  filter(ind>=4670 & ind<=5790) %>% 
+  filter(empstat < 30 & empstat >= 10) %>% 
+  mutate(emp_Status = empstat, industry = ind)
+```
+
+Create a binary variable to indicate employment status, 0 = unemployed,
+ 1 = employed
+
+```{r message=FALSE, warning=FALSE}
+t_employment <- t_employment %>% 
+  mutate(employed = ifelse(empstat < 20, 1, 0))
+```
+
+Create a variable to indicate whether data point is from before or after
+ COVID, 0 = pre-covid, 1 = post-covid
+Add a year_month variable for grouping during analysis
+
+```{r message=FALSE, warning=FALSE}
+t_employment <- t_employment %>% 
+  mutate(month = as.factor(month)) %>% 
+  mutate(year_month = ym(paste0(year, '-', month))) %>% 
+  mutate(post_covid = ifelse(year_month > '2020-03-01', 1, 0))
+```
+
+Select only desired variables.
+
+```{r message=FALSE, warning=FALSE}
+t_employment <- t_employment %>% 
+  select(year, month, employed, year_month, post_covid, statefip) %>% 
+  mutate(statefip = as.numeric(statefip)) %>% 
+  mutate(for_count = 1)
+```
+
+Replace numeric state codes with state names.
+
+```{r message=FALSE, warning=FALSE}
+t_employment <- t_employment %>% 
+  left_join(states, "statefip") %>% 
+  mutate(state = statename) %>% 
+  select(-statefip, -statename)
+```
+
+Group and summarise data by date only.
+
+```{r message=FALSE, warning=FALSE}
+t_employment_group <- t_employment %>% 
+  group_by(year_month) %>% 
+  summarise(num_employable = sum(for_count),
+            num_employed = sum(employed==1),
+            num_unemployed = num_employable - num_employed) %>% 
+  mutate(percent_unemployed = num_unemployed/num_employable,
+         post_covid = ifelse(year_month > '2020-03-01', 1, 0))
+```
+
+Group and summarise by date and state. We want to look at data
+ grouped by state because we suspect that a lot back-door variation
+ will come from economic and political differences between states.
+
+```{r message=FALSE, warning=FALSE}
+t_employment_group_2 <- t_employment %>% 
+  group_by(state, year_month) %>% 
+  summarise(num_employable = sum(for_count),
+            num_employed = sum(employed==1),
+            num_unemployed = num_employable - num_employed) %>% 
+  mutate(percent_unemployed = num_unemployed/num_employable,
+         post_covid = ifelse(year_month > '2020-03-01', 1, 0))
+```
+
+Before running a regression, we'll graph unemployment trends across time, both
+ grouped by state and not grouped by state.
+
+The first graph shows a clear jump in unemployment in April, right
+ after COVID. Unemployment levels decrease steadily after that, returning to
+ near normal until at the end of 2021.
+
+```{r message=FALSE, warning=FALSE}
+t_employment_group %>% 
+  ggplot(aes(x=year_month, y=percent_unemployed)) + 
+  geom_point()
+```
+
+If we run the same graph but with data points grouped by state, we
+ see a similar trend overall, but a significant amount of variation
+ each month based on state. This is an indicator that we should
+ control for state in our regression.
+
+```{r message=FALSE, warning=FALSE}
+t_employment_group_2 %>% 
+  ggplot(aes(x=year_month, y=percent_unemployed, group=state)) + 
+  geom_point
+```
+
+Given that we have panel data and our graphs indicate a lot of
+ between-state variation, we chose a fixed effects model to look at
+ pre- and post-covid changes while controlling for state variations.
+
+```{r message=FALSE, warning=FALSE}
+m1 <- t_employment_group_2 %>% 
+  feols(percent_unemployed~post_covid | state)
+
+etable(m1)
+```
+
+Looking at our results, we can conclude that, when controlling for state,
+ monthly average post-covid unemployment rates are 4.67 percent
+ higher than average monthly pre-covid unemployment rates. This
+ is true at a .001 level of significance.
+
+## Assumption Acknowledgement
+
+1. Our first assumption was that we can control for many economic and political differences by controlling for state.
+
+2. Based on the reports during this timeframe, we assume that the total COVID cases reported are accurate. While higher cases of COVID may have occurred earlier in 2020, they may have gone unreported. We are assuming that all data for COVID cases is correct.
+
+3. We assume unemployment is the main indicator of retail industry performance. It is assumed that a healthy retail industry has a steady flow of customers contributing to steady revenue flow, enabling it to maintain uniformly sized employee pools.
+
+
+## Final Results: “How Did COVID Impact the Retail Industry as Measured by Unemployment?”
+
+Our first regression shows a statistically significant relationship between layoffs, lockdown start-dates, and COVID-related unemployment.
+
+Our final regression shows a statistically significant increase in monthly average unemployment rates post-Covid (April 2020 - December 2020) versus pre-Covid (January 2019 - March 2020).
+
+We concluded that a rise in unemployment in 2020 was a direct result of COVID-19's negative impact on the retail industry's health. In addition, unemployment was rising long before states started requiring lock down orders. Finally, we observe that before positive cases started to surge upward, unemployment climbed and then fell back to a much lower rate.
+
+#Question 2 Analysis
+
+###Plotting the Datasource
+
+The first graph is displaying the employment change percentage per month by the two industry categories, retail and non-retail
+
+The second graph is displaying the employment change percentage per month by each industry
+
+```{r}
+industry_cat_df %>%
+  ggplot(aes(x=date,y=percent_change,group=industry_cat,color=industry_cat)) +
+  scale_y_continuous(labels=scales::percent_format(accuracy=.1)) +
+  geom_point() + geom_line() + theme(aspect.ratio=6/7) +
+  labs(x="Date",y="Employment Percentage Change",color="Industry Category",
+       title= "Employment Percentage Change by Industry Category")
+
+industry_df %>%
+  ggplot(aes(x=date,y=percent_change,group=indname,color=indname)) +
+  scale_y_continuous(labels=scales::percent_format(accuracy=.1)) +
+  geom_point() + geom_line() + theme(aspect.ratio=1) +
+  labs(x="Date",y="Employment Percentage Change",color="Industry Name",
+       title= "Employment Percentage Change by Industry")
+```
+###Creating a regression df for question 2
+```{r}
+q2_reg_df <- filtered_df %>%
+  ungroup()%>%
+  group_by(date,industry_cat)%>%
+  mutate(avg_employment = mean(emp_count))%>%
+  select(c('industry_cat','year','date','covid_active','avg_employment'))%>%
+  distinct()%>%
+  ungroup()%>%
+  group_by(industry_cat)%>%
+  mutate(employment_change = ((avg_employment-lag(avg_employment))))%>%
+  drop_na()
+```
+
+###Regressions
+```{r}
+reg1 <- feols(emp_count~indname,se= 'hetero',data= filtered_df)
+reg1.1 <- feols(emp_count~indname*covid_active,se='hetero',data= filtered_df)
+etable(reg1,reg1.1)
+
+reg2 <- feols(emp_count~industry_cat,se='hetero',data= filtered_df)
+reg2.1 <- feols(emp_count~industry_cat*covid_active,se='hetero',data= filtered_df)
+etable(reg2,reg2.1)
+
+reg3 <- feols(employment_change~industry_cat,se= 'hetero',data= q2_reg_df)
+reg3.1 <- feols(employment_change~industry_cat*covid_active,se= 'hetero',data= q2_reg_df)
+etable(reg3,reg3.1)
+```
+
+#Question 3 Analysis
+
+
+### EDA
+
+```{r, warning = FALSE, message = FALSE}
+# distinct people in survey = 500,130
+summary(demo_data)
+vtable(demo_data, lush = TRUE)
+reg_df_vis<- demo_data %>% 
+  select(period_type
+         , date_
+         ## Measure
+         , is_employed
+         , WTFINL
+         ## Variables
+         , IND, indname, REGION
+         ## Fixed
+         , AGE, sex, RACE
+  )
+```
+
+```{r, warning = FALSE, message = FALSE}
+## All industries unemployment rate over time
+unemp_time <- demo_data %>% 
+  filter(indname != 'Military', indname != 'Other') %>%
+  group_by(date_) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment - All Industry")+
+  theme(aspect.ratio=3/7)
+unemp_time
+
+## All industries v retail unemployment rate over time
+unemp_retail_time <- demo_data %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, retail_v_other) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment (Retail v Other Industries)")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7)
+unemp_retail_time
+## limit x window for clarity
+unemp_time_skinny <- demo_data %>% 
+  filter(date_>=as_date('2020-01-01'),
+         date_<= as_date('2020-06-01')) %>%
+  filter(indname != 'Military', indname != 'Other') %>%
+  group_by(date_, retail_v_other) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment (Retail v Other Industries), 2020")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7)
+unemp_time_skinny
+```
+
+```{r, warning = FALSE, message = FALSE}
+unemp_industries <- demo_data %>%
+  filter(indname != 'Military', indname != 'Other') %>%
+  group_by(date_, indname) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = indname)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+ labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment All Industries")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7, legend.position = 'none')
+unemp_industries
+```
+
+### Geographical
+```{r, warning = FALSE, message = FALSE}
+unemp_by_region <- demo_data %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, REGION) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = REGION)) + geom_line()+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment by Region All Industries")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7)
+unemp_by_region
+
+unemp_by_metro <- demo_data %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, METRO) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = METRO)) + geom_line()+
+  theme(aspect.ratio=3/7)+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment by Location : City, Suburban, Rural, Other")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7)
+unemp_by_metro
+```
+
+### Race
+```{r, warning = FALSE, message = FALSE}
+#### RACE PRE-COVID EMPLOYMENT ####
+unemp_by_race <- demo_data %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, RACE) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = RACE)) + geom_line()+
+  theme(aspect.ratio=3/7)+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment All Industries")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7)
+unemp_by_race
+```
+
+### Age
+```{r, warning = FALSE, message = FALSE}
+unemp_by_age_group <- demo_data %>%
+  filter(indname != 'Military', indname != 'Other') %>% 
+  group_by(date_, AgeGroup) %>%
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  ggplot(aes(x = date_, y = UnemploymentRate, color = AgeGroup)) + geom_line()+
+  theme(aspect.ratio=3/7)+
+  geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
+  labs(x = "Survey Date", y = "Unemployment Rate",
+    title ="Unemployment All Industries")+
+  scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
+  theme(aspect.ratio=3/7)
+unemp_by_age_group
+```
+
+# Regressions
+```{r, warning = FALSE, message = FALSE}
+reg_df <- demo_data %>%
+  select(period_type
+         , date_
+         ## Measure
+         , is_employed
+         , WTFINL
+         ## Variables
+         , IND, indname, REGION
+         ## Fixed
+         , AGE, sex, RACE, AgeGroup, MARST
+  )
+
+reg1 <- feols(is_employed~period_type + indname, se = 'hetero', data = reg_df)
+reg1a <- feols(is_employed~period_type, se = 'hetero', data = reg_df)
+etable(reg1, reg1a)               
+```
+--Interpretation reg1a =  
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 2.92% decrease within the Entertainment and Recreation industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 5.22% decrease in within the Entertainment and Recreation industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .95% decrease within the Educational Services industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 1.59% increase within the Educational Services industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 2.37% increase within the Financial & Insurance services industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .02% increase within the Information services industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .81% increase within the Manufacturing industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a -95.02% decrease within the Manufacturing industry.  # logically work through this, does it make sense?  Simply filter out?
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .1% decrease within Other Services Industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .32% increase within Professional, Scientific and Management Industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 3.7% increase within Public Administration Industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .66% decrease within Retail Trade Industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a .13% decrease within Transportation & warehousing Industry.
+
+-controlling for industry and relative to agricultural industry, a one-unit change in pre-covid employment is associated with a 1.36% increase within Wholesale Trade Industry.
+
+```{r}
+reg2 <- feols(is_employed~indname + period_type, se = 'hetero', data = reg_df)
+etable(reg2)
+```
+
+Interpretation reg2- note:summary table above in findings.
+-controlling for period_tyep[pre-covid(1/2019-2/2020), covid(3/2020), and post covid(4/2020-12/2021)] and relative to agricultural industry, a one-unit change in industry employment is associated with a -5.22% decrease within the Entertainment and Recreation industry.
+ 
+-controlling for period_tyep[pre-covid(1/2019-2/2020), covid(3/2020), and post covid(4/2020-12/2021)] and relative to agricultural industry, a one-unit change in industry employment is associated with a -.66% decrease within the Retail Trade industry.
+ 
+-controlling for period_tyep[pre-covid(1/2019-2/2020), covid(3/2020), and post covid(4/2020-12/2021)] and relative to agricultural industry, a one-unit change in industry employment is associated with a -.13% decrease within the Transportation & warehousing industry.
   
-* categorize the `q1_employment` data into `rationale` (for reasons why they are unemployed) categories to look at which employment changed into three levels:
-
-  + “Laid Off”,
-  + “Other”,
-  + “Temporary Job Ended”
-  
-  
-* relationship between `timeline` (google search trends) and layoffs.
-
-* relationship between `lockdown_states` (stay at home order by govt.) and unemployment.
-
-* implement H0 and HA.
-
-
-
 
