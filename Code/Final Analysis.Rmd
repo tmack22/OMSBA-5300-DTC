@@ -274,7 +274,9 @@ demo_data <- Q3_DF %>%
 
 ```
 
-### Varibale Analysis
+#Question 1 Analysis
+
+### Variable Analysis
 
 | Variable |  Definition
 |:------    |:-------------------------------------------------     | 
@@ -375,7 +377,7 @@ The model did not show a statistically significant relationship between the lock
 Next, we decided to look at the data using unemployment rates within the data as our metric (rather than number of layoffs).
 
 ```{r message=FALSE, warning=FALSE}
-employment_data <- read_dta('cps_00010.dta')
+employment_data <- read_dta('Q1_1.dta.zip')
 
 states <- read_csv('state_codes.csv')
 ```
