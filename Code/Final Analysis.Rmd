@@ -43,18 +43,19 @@ library(ggplot2)
 **Raw Data**:
 ```{r message=FALSE, warning=FALSE}
 #Question 1 Dataloads
-q1_employment <- read_dta('./cps_00001.dta') 
-covid_history <- read_csv('./covid_history.csv') 
-state_lockdowns <- read_csv('./state_lockdowns.csv')
-state_names <- read_csv('./state_names.csv')
-timeline <- read_csv('./timeline.csv')
+
+q1_employment <- read_dta('./Q1.dta.zip') 
+covid_history <- read_csv('covid_history.csv') 
+state_lockdowns <- read_csv('state_lockdowns.csv')
+state_names <- read_csv('state_names.csv')
+timeline <- read_csv('timeline.csv')
 
 #Question 2 Dataloads
-industry_names <- read.csv('./indnames.csv') %>%
+industry_names <- read.csv('indnames.csv') %>%
   mutate(industry_cat = case_when(
     indname == 'Retail Trade' ~ 'Retail',
     indname != 'Retail Trade' ~ 'Non-Retail'))
-q2_data <- read_dta('./cps_00004.dta.gz')
+q2_data <- read_dta('./Q2.dta.gz')
 
 #Question 3 Dataloads
 
