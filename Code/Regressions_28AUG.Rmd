@@ -33,7 +33,7 @@ Our analysis applies 3 main data sources:
 | `YEAR` | Year survey was taken |
 | `MONTH` | Month survey was taken |
 | `EMPSTAT` | Employment status |
-| `WTFINL` | Survey person weight (as calculated by CPS) |
+| `final_weight` | Survey person weight (as calculated by CPS) |
 | `IND`  | Respondent's work industry code |
 | `REGION` | Respondents location (regional) |
 | `AGE`  | Respondent's age |
@@ -58,11 +58,11 @@ Our analysis applies 3 main data sources:
 | `State` | State English name |
 
 
-# Background & Assumptions
-Our study was shaped using unemployment figures by industry, geography, race and age from January 2019 through December 2021.  Operating under the guidance that anything before March 2020 was "Pre-Covid" and anything after March 2020 was "Post-Covid" we broke our data into three distinct time periods.  These time periods were Pre-Covid (JAN 2019
--through Feb 2020), Covid (March 2020) and Post-Covid (April 2020-through- December 2021) and evaluated changes in unemployment over time by industry, changes to unemployment by geography, race and age.  We made assumptions when evaluating industry unemployment that jobs numbers in relation to different industries are similar; however, employment in one industry(e.g. technology, healthcare) versus employment in the leisure and hospitality industry lead to differing amounts of discretionary income available to consumers.
 
-We did not take into account household savings and debt rates from Jan 2019 through Dec 2021, and these factors play a role in discretionary income families have to spend.  In the future, we'd take into account and create family income on the monthly level and not just industry members of household worked in, but account for their job.  Future research is recommended to account for jobs within industries that can be performed from an employee's home in order to assist in identifying and quantifying how many earners moved from cities to suburbs or rural areas.  Cohorts that relocated during the pandemic to suburbs, working in high-earning occupations, present an opportunity for businesses to meet customers demands at different geographic locations.
+# Background & Assumptions
+Our study was shaped using unemployment figures by industry, geography, race and age from January 2019 through December 2021.  Operating under the guidance that anything before March 2020 was "Pre-Covid," March 2020 was "Covid", and anything after March 2020 was "Post-Covid," we broke our data into three distinct time periods.  These time periods were Pre-Covid (JAN 2019-through Feb 2020), Covid (March 2020) and Post-Covid (April 2020-through- December 2021) and evaluated changes in unemployment over time by industry, changes to unemployment by geography, race and age.  We made assumptions when evaluating industry unemployment that jobs numbers in relation to different industries are similar; however, employment in one industry(e.g. technology, healthcare) versus employment in the leisure and hospitality industry lead to differing amounts of discretionary income available to consumers.
+
+We did not take into account household savings and debt rates from Jan 2019 through Dec 2021, and these factors play a role in discretionary income families have to spend.  In the future, we'd take into account and create family income on the monthly level and not just industry members of household worked in, but account for their job.  Future research is recommended to account for jobs within industries that can be performed from an employee's home.  Doing so would assist in identifying and quantifying how many earners moved from cities to suburbs or rural areas.  Cohorts that relocated during the pandemic to suburbs and working in high-earning occupations present an opportunity for businesses to meet customers demands at different geographic locations.
 
 The below table summarizes our regression of type of industry respondent claimed to work and time period on reported employment. 
 
@@ -146,7 +146,7 @@ demo_data <- DF %>%
   mutate(sex = case_when(
     SEX == 1 ~  'male',
     SEX == 2 ~ 'female')) %>%
-  mutate(MARST = case_when(
+  mutate(Married = case_when(
     MARST == 1 ~ 'Married',
     MARST != 1 ~ 'Single')) %>%
   mutate(RACE = case_when(
@@ -218,10 +218,12 @@ demo_data <- DF %>%
   mutate_if(is.character, as.factor) %>%
   unite(HHID, HRHHID, HRHHID2) %>%
   drop_na(indname) %>%  # Dropping N/A's in indname as NIU's in military.
-  select(date_, YEAR, MONTH, HHID, PERNUM, EMPSTAT, is_employed, employed, unemployed, CPSID, CPSIDP
+  select(date_, YEAR, MONTH, HHID, EMPSTAT, is_employed, employed, unemployed, CPSIDP
           , HWTFINL, WTFINL, FAMINC, REGION, METRO, AGE, AgeGroup, SEX, sex
-          , RACE, MARST, IND, WHYUNEMP, AgeGroup, Education, LaborForce
-          , EmploymentStatus, WorkStatus, FamilyIncome, indname, retail_v_other, State, period_type)
+          , RACE, Married, IND, WHYUNEMP, AgeGroup, Education, LaborForce
+          , EmploymentStatus, WorkStatus, FamilyIncome, indname, retail_v_other, State, period_type) %>%
+  rename(final_weight= WTFINL, person_id = CPSIDP, household_weight = HWTFINL)
+
 ```
 
 
@@ -236,7 +238,7 @@ reg_df_vis<- demo_data %>%
          , date_
          ## Measure
          , is_employed
-         , WTFINL
+         , final_weight
          ## Variables
          , IND, indname, REGION
          ## Fixed
@@ -251,7 +253,7 @@ reg_df_vis<- demo_data %>%
 unemp_time <- demo_data %>% 
   filter(indname != 'Military', indname != 'Other') %>%
   group_by(date_) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate)) + geom_line()+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
   scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
@@ -264,7 +266,7 @@ unemp_time
 unemp_retail_time <- demo_data %>%
   filter(indname != 'Military', indname != 'Other') %>% 
   group_by(date_, retail_v_other) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
   labs(x = "Survey Date", y = "Unemployment Rate",
@@ -278,7 +280,7 @@ unemp_time_skinny <- demo_data %>%
          date_<= as_date('2020-06-01')) %>%
   filter(indname != 'Military', indname != 'Other') %>%
   group_by(date_, retail_v_other) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
   labs(x = "Survey Date", y = "Unemployment Rate",
@@ -292,7 +294,7 @@ unemp_time_skinny
 unemp_industries <- demo_data %>%
   filter(indname != 'Military', indname != 'Other') %>%
   group_by(date_, indname) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = indname)) + geom_line()+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+ labs(x = "Survey Date", y = "Unemployment Rate",
     title ="Unemployment All Industries")+
@@ -306,7 +308,7 @@ unemp_industries
 unemp_by_region <- demo_data %>%
   filter(indname != 'Military', indname != 'Other') %>% 
   group_by(date_, REGION) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = REGION)) + geom_line()+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
   labs(x = "Survey Date", y = "Unemployment Rate",
@@ -318,7 +320,7 @@ unemp_by_region
 unemp_by_metro <- demo_data %>%
   filter(indname != 'Military', indname != 'Other') %>% 
   group_by(date_, METRO) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = METRO)) + geom_line()+
   theme(aspect.ratio=3/7)+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
@@ -336,7 +338,7 @@ During March 2020, all regions experienced sudden and parallel changes in unempl
 unemp_by_race <- demo_data %>%
   filter(indname != 'Military', indname != 'Other') %>% 
   group_by(date_, RACE) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = RACE)) + geom_line()+
   theme(aspect.ratio=3/7)+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
@@ -353,7 +355,7 @@ Evaluating all industry types, American Indians, African-Americans and Latino's 
 unemp_by_age_group <- demo_data %>%
   filter(indname != 'Military', indname != 'Other') %>% 
   group_by(date_, AgeGroup) %>%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %>% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %>% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = AgeGroup)) + geom_line()+
   theme(aspect.ratio=3/7)+
   geom_rect(aes(xmin=as_date('2020-03-01'), xmax=as_date('2020-04-01'), ymin=-Inf, ymax=Inf),  linetype = 'dashed',color="light green", fill = 'light green' ,alpha=.01)+
@@ -372,11 +374,11 @@ reg_df <- demo_data %>%
          , date_
          ## Measure
          , is_employed
-         , WTFINL
+         , final_weight
          ## Variables
          , IND, indname, REGION
          ## Fixed
-         , AGE, sex, RACE, AgeGroup, MARST
+         , AGE, sex, RACE, AgeGroup, Married
   )
 
 reg1 <- feols(is_employed~period_type + indname, se = 'hetero', data = reg_df)

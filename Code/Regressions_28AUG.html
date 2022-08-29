@@ -1776,7 +1776,7 @@ between January 2019 and Januaray 2021</li>
 <td align="left">Employment status</td>
 </tr>
 <tr class="even">
-<td align="left"><code>WTFINL</code></td>
+<td align="left"><code>final_weight</code></td>
 <td align="left">Survey person weight (as calculated by CPS)</td>
 </tr>
 <tr class="odd">
@@ -1852,27 +1852,28 @@ Assumptions</h1>
 <p>Our study was shaped using unemployment figures by industry,
 geography, race and age from January 2019 through December 2021.
 Operating under the guidance that anything before March 2020 was
-“Pre-Covid” and anything after March 2020 was “Post-Covid” we broke our
-data into three distinct time periods. These time periods were Pre-Covid
-(JAN 2019 -through Feb 2020), Covid (March 2020) and Post-Covid (April
-2020-through- December 2021) and evaluated changes in unemployment over
-time by industry, changes to unemployment by geography, race and age. We
-made assumptions when evaluating industry unemployment that jobs numbers
-in relation to different industries are similar; however, employment in
-one industry(e.g. technology, healthcare) versus employment in the
-leisure and hospitality industry lead to differing amounts of
-discretionary income available to consumers.</p>
+“Pre-Covid,” March 2020 was “Covid”, and anything after March 2020 was
+“Post-Covid,” we broke our data into three distinct time periods. These
+time periods were Pre-Covid (JAN 2019-through Feb 2020), Covid (March
+2020) and Post-Covid (April 2020-through- December 2021) and evaluated
+changes in unemployment over time by industry, changes to unemployment
+by geography, race and age. We made assumptions when evaluating industry
+unemployment that jobs numbers in relation to different industries are
+similar; however, employment in one industry(e.g. technology,
+healthcare) versus employment in the leisure and hospitality industry
+lead to differing amounts of discretionary income available to
+consumers.</p>
 <p>We did not take into account household savings and debt rates from
 Jan 2019 through Dec 2021, and these factors play a role in
 discretionary income families have to spend. In the future, we’d take
 into account and create family income on the monthly level and not just
 industry members of household worked in, but account for their job.
 Future research is recommended to account for jobs within industries
-that can be performed from an employee’s home in order to assist in
+that can be performed from an employee’s home. Doing so would assist in
 identifying and quantifying how many earners moved from cities to
 suburbs or rural areas. Cohorts that relocated during the pandemic to
-suburbs, working in high-earning occupations, present an opportunity for
-businesses to meet customers demands at different geographic
+suburbs and working in high-earning occupations present an opportunity
+for businesses to meet customers demands at different geographic
 locations.</p>
 <p>The below table summarizes our regression of type of industry
 respondent claimed to work and time period on reported employment.</p>
@@ -2017,7 +2018,7 @@ demo_data &lt;- DF %&gt;%
   mutate(sex = case_when(
     SEX == 1 ~  &#39;male&#39;,
     SEX == 2 ~ &#39;female&#39;)) %&gt;%
-  mutate(MARST = case_when(
+  mutate(Married = case_when(
     MARST == 1 ~ &#39;Married&#39;,
     MARST != 1 ~ &#39;Single&#39;)) %&gt;%
   mutate(RACE = case_when(
@@ -2089,10 +2090,11 @@ demo_data &lt;- DF %&gt;%
   mutate_if(is.character, as.factor) %&gt;%
   unite(HHID, HRHHID, HRHHID2) %&gt;%
   drop_na(indname) %&gt;%  # Dropping N/A&#39;s in indname as NIU&#39;s in military.
-  select(date_, YEAR, MONTH, HHID, PERNUM, EMPSTAT, is_employed, employed, unemployed, CPSID, CPSIDP
+  select(date_, YEAR, MONTH, HHID, EMPSTAT, is_employed, employed, unemployed, CPSIDP
           , HWTFINL, WTFINL, FAMINC, REGION, METRO, AGE, AgeGroup, SEX, sex
-          , RACE, MARST, IND, WHYUNEMP, AgeGroup, Education, LaborForce
-          , EmploymentStatus, WorkStatus, FamilyIncome, indname, retail_v_other, State, period_type)</code></pre>
+          , RACE, Married, IND, WHYUNEMP, AgeGroup, Education, LaborForce
+          , EmploymentStatus, WorkStatus, FamilyIncome, indname, retail_v_other, State, period_type) %&gt;%
+  rename(final_weight= WTFINL, person_id = CPSIDP, household_weight = HWTFINL)</code></pre>
 </div>
 <div id="eda" class="section level2" number="3.3">
 <h2><span class="header-section-number">3.3</span> EDA</h2>
@@ -2106,62 +2108,62 @@ summary(demo_data)</code></pre>
 ##  3rd Qu.:2021-03-01   3rd Qu.:2021   3rd Qu.:10.000                     
 ##  Max.   :2021-12-01   Max.   :2021   Max.   :12.000                     
 ##                                                                         
-##      PERNUM          EMPSTAT      is_employed        employed     
-##  Min.   : 1.000   Min.   :10.00   Mode :logical   Min.   :0.0000  
-##  1st Qu.: 1.000   1st Qu.:10.00   FALSE:95180     1st Qu.:1.0000  
-##  Median : 1.000   Median :10.00   TRUE :1856692   Median :1.0000  
-##  Mean   : 1.736   Mean   :10.61                   Mean   :0.9512  
-##  3rd Qu.: 2.000   3rd Qu.:10.00                   3rd Qu.:1.0000  
-##  Max.   :16.000   Max.   :21.00                   Max.   :1.0000  
-##                                                                   
-##    unemployed          CPSID               CPSIDP             HWTFINL       
-##  Min.   :0.00000   Min.   :2.017e+13   Min.   :2.017e+13   Min.   :  150.7  
-##  1st Qu.:0.00000   1st Qu.:2.019e+13   1st Qu.:2.019e+13   1st Qu.: 1457.1  
-##  Median :0.00000   Median :2.019e+13   Median :2.019e+13   Median : 3196.5  
-##  Mean   :0.04876   Mean   :2.019e+13   Mean   :2.019e+13   Mean   : 2916.3  
-##  3rd Qu.:0.00000   3rd Qu.:2.020e+13   3rd Qu.:2.020e+13   3rd Qu.: 4023.9  
-##  Max.   :1.00000   Max.   :2.021e+13   Max.   :2.021e+13   Max.   :26194.1  
+##     EMPSTAT      is_employed        employed        unemployed     
+##  Min.   :10.00   Mode :logical   Min.   :0.0000   Min.   :0.00000  
+##  1st Qu.:10.00   FALSE:95180     1st Qu.:1.0000   1st Qu.:0.00000  
+##  Median :10.00   TRUE :1856692   Median :1.0000   Median :0.00000  
+##  Mean   :10.61                   Mean   :0.9512   Mean   :0.04876  
+##  3rd Qu.:10.00                   3rd Qu.:1.0000   3rd Qu.:0.00000  
+##  Max.   :21.00                   Max.   :1.0000   Max.   :1.00000  
+##                                                                    
+##    person_id         household_weight   final_weight         FAMINC   
+##  Min.   :2.017e+13   Min.   :  150.7   Min.   :  135.8   Min.   :100  
+##  1st Qu.:2.019e+13   1st Qu.: 1457.1   1st Qu.: 1489.6   1st Qu.:740  
+##  Median :2.019e+13   Median : 3196.5   Median : 3240.9   Median :841  
+##  Mean   :2.019e+13   Mean   : 2916.3   Mean   : 2990.1   Mean   :781  
+##  3rd Qu.:2.020e+13   3rd Qu.: 4023.9   3rd Qu.: 4118.5   3rd Qu.:842  
+##  Max.   :2.021e+13   Max.   :26194.1   Max.   :26194.1   Max.   :843  
+##                                                                       
+##        REGION              METRO             AGE                 AgeGroup     
+##  Midwest  :404365   CityCenter:495613   Min.   :15.00   20to29       :345377  
+##  Northeast:321633   Other     :332859   1st Qu.:31.00   30to39       :424379  
+##  South    :689489   Rural     :344367   Median :43.00   40to49       :398013  
+##  West     :536385   Suburb    :779033   Mean   :43.35   50to59       :396584  
+##                                         3rd Qu.:55.00   60to65       :183335  
+##                                         Max.   :85.00   RetirementAge:132366  
+##                                                         under20      : 71818  
+##       SEX            sex                      RACE            Married       
+##  Min.   :1.000   female: 931360   AmericanIndian:  17301   Married:1040214  
+##  1st Qu.:1.000   male  :1020512   Asian         : 118013   Single : 911658  
+##  Median :1.000                    Black         : 180790                    
+##  Mean   :1.477                    Latino        : 274165                    
+##  3rd Qu.:2.000                    MixedRace     :  27768                    
+##  Max.   :2.000                    White         :1333835                    
 ##                                                                             
-##      WTFINL            FAMINC          REGION              METRO       
-##  Min.   :  135.8   Min.   :100   Midwest  :404365   CityCenter:495613  
-##  1st Qu.: 1489.6   1st Qu.:740   Northeast:321633   Other     :332859  
-##  Median : 3240.9   Median :841   South    :689489   Rural     :344367  
-##  Mean   : 2990.1   Mean   :781   West     :536385   Suburb    :779033  
-##  3rd Qu.: 4118.5   3rd Qu.:842                                         
-##  Max.   :26194.1   Max.   :843                                         
-##                                                                        
-##       AGE                 AgeGroup           SEX            sex         
-##  Min.   :15.00   20to29       :345377   Min.   :1.000   female: 931360  
-##  1st Qu.:31.00   30to39       :424379   1st Qu.:1.000   male  :1020512  
-##  Median :43.00   40to49       :398013   Median :1.000                   
-##  Mean   :43.35   50to59       :396584   Mean   :1.477                   
-##  3rd Qu.:55.00   60to65       :183335   3rd Qu.:2.000                   
-##  Max.   :85.00   RetirementAge:132366   Max.   :2.000                   
-##                  under20      : 71818                                   
-##              RACE             MARST              IND      
-##  AmericanIndian:  17301   Married:1040214   Min.   : 170  
-##  Asian         : 118013   Single : 911658   1st Qu.:4870  
-##  Black         : 180790                     Median :7380  
-##  Latino        : 274165                     Mean   :6279  
-##  MixedRace     :  27768                     3rd Qu.:8191  
-##  White         :1333835                     Max.   :9890  
-##                                                           
-##               WHYUNEMP                   Education      LaborForce 
-##  FirstJob         :      0   AssociateDegree  :213311   1:1951872  
-##  LostJob          :1920559   Bachelors        :476166              
-##  Quit             :   9005   HighSchoolDiploma:511288              
-##  ReEnterLaborForce:  22308   Masters          :205909              
-##                              NoDiploma        :145911              
-##                              PhDProfessional  : 77630              
-##                              SomeCollege      :321657              
-##  EmploymentStatus                 WorkStatus                   FamilyIncome   
-##  0:  95180        FullTime             :1364918   &lt;$25k_FPL_Familyof4:178130  
-##  1:1856692        FullTimeNoWork       :  52096   100k - 150k        :359492  
-##                   NoWorkSeekingFullTime:  77392   150k+              :369766  
-##                   NoWorkSeekingPartTime:  17788   25k-50K            :369091  
-##                   PartTime             : 418664   50k-75k            :375278  
-##                   PartTimeNoWork       :  21014   75k-100k           :300115  
-##                                                                               
+##       IND                    WHYUNEMP                   Education     
+##  Min.   : 170   FirstJob         :      0   AssociateDegree  :213311  
+##  1st Qu.:4870   LostJob          :1920559   Bachelors        :476166  
+##  Median :7380   Quit             :   9005   HighSchoolDiploma:511288  
+##  Mean   :6279   ReEnterLaborForce:  22308   Masters          :205909  
+##  3rd Qu.:8191                               NoDiploma        :145911  
+##  Max.   :9890                               PhDProfessional  : 77630  
+##                                             SomeCollege      :321657  
+##  LaborForce  EmploymentStatus                 WorkStatus     
+##  1:1951872   0:  95180        FullTime             :1364918  
+##              1:1856692        FullTimeNoWork       :  52096  
+##                               NoWorkSeekingFullTime:  77392  
+##                               NoWorkSeekingPartTime:  17788  
+##                               PartTime             : 418664  
+##                               PartTimeNoWork       :  21014  
+##                                                              
+##               FamilyIncome   
+##  &lt;$25k_FPL_Familyof4:178130  
+##  100k - 150k        :359492  
+##  150k+              :369766  
+##  25k-50K            :369091  
+##  50k-75k            :375278  
+##  75k-100k           :300115  
+##                              
 ##                                                                                        indname      
 ##  Educational Services, and Health Care and Social Assistance                               :448593  
 ##  Professional, Scientific, and Management, and Administrative and Waste Management Services:234286  
@@ -2289,26 +2291,6 @@ nuniq: 282850
 </tr>
 <tr>
 <td style="text-align:left;">
-PERNUM
-</td>
-<td style="text-align:left;">
-numeric
-</td>
-<td style="text-align:left;">
-Person number in sample unit
-</td>
-<td style="text-align:left;">
-Num: 1 to 16
-</td>
-<td style="text-align:left;">
-0
-</td>
-<td style="text-align:left;">
-mean: 1.736, sd: 1.068, nuniq: 16
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
 EMPSTAT
 </td>
 <td style="text-align:left;">
@@ -2389,27 +2371,7 @@ mean: 0.049, sd: 0.215, nuniq: 2
 </tr>
 <tr>
 <td style="text-align:left;">
-CPSID
-</td>
-<td style="text-align:left;">
-numeric
-</td>
-<td style="text-align:left;">
-CPSID, household record
-</td>
-<td style="text-align:left;">
-Num: 20171000000400 to 20211206841100
-</td>
-<td style="text-align:left;">
-0
-</td>
-<td style="text-align:left;">
-mean: 20194230955716.8, sd: 10103760006.248, nuniq: 282850
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-CPSIDP
+person_id
 </td>
 <td style="text-align:left;">
 numeric
@@ -2429,7 +2391,7 @@ mean: 20194230955718.5, sd: 10103760006.223, nuniq: 492303
 </tr>
 <tr>
 <td style="text-align:left;">
-HWTFINL
+household_weight
 </td>
 <td style="text-align:left;">
 numeric
@@ -2449,7 +2411,7 @@ mean: 2916.28, sd: 1627.751, nuniq: 847057
 </tr>
 <tr>
 <td style="text-align:left;">
-WTFINL
+final_weight
 </td>
 <td style="text-align:left;">
 numeric
@@ -2629,7 +2591,7 @@ nuniq: 6
 </tr>
 <tr>
 <td style="text-align:left;">
-MARST
+Married
 </td>
 <td style="text-align:left;">
 factor
@@ -2881,7 +2843,7 @@ nuniq: 3
          , date_
          ## Measure
          , is_employed
-         , WTFINL
+         , final_weight
          ## Variables
          , IND, indname, REGION
          ## Fixed
@@ -2891,7 +2853,7 @@ nuniq: 3
 unemp_time &lt;- demo_data %&gt;% 
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;%
   group_by(date_) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate)) + geom_line()+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
   scale_y_continuous(labels = scales::percent_format(accuracy = .1))+
@@ -2904,7 +2866,7 @@ unemp_time</code></pre>
 unemp_retail_time &lt;- demo_data %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;% 
   group_by(date_, retail_v_other) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
   labs(x = &quot;Survey Date&quot;, y = &quot;Unemployment Rate&quot;,
@@ -2919,7 +2881,7 @@ unemp_time_skinny &lt;- demo_data %&gt;%
          date_&lt;= as_date(&#39;2020-06-01&#39;)) %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;%
   group_by(date_, retail_v_other) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = retail_v_other)) + geom_line()+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
   labs(x = &quot;Survey Date&quot;, y = &quot;Unemployment Rate&quot;,
@@ -2931,7 +2893,7 @@ unemp_time_skinny</code></pre>
 <pre class="r"><code>unemp_industries &lt;- demo_data %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;%
   group_by(date_, indname) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = indname)) + geom_line()+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+ labs(x = &quot;Survey Date&quot;, y = &quot;Unemployment Rate&quot;,
     title =&quot;Unemployment All Industries&quot;)+
@@ -2944,7 +2906,7 @@ unemp_industries</code></pre>
 <pre class="r"><code>unemp_by_region &lt;- demo_data %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;% 
   group_by(date_, REGION) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = REGION)) + geom_line()+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
   labs(x = &quot;Survey Date&quot;, y = &quot;Unemployment Rate&quot;,
@@ -2956,7 +2918,7 @@ unemp_by_region</code></pre>
 <pre class="r"><code>unemp_by_metro &lt;- demo_data %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;% 
   group_by(date_, METRO) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = METRO)) + geom_line()+
   theme(aspect.ratio=3/7)+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
@@ -2981,7 +2943,7 @@ the cities was highest during this period.</p>
 unemp_by_race &lt;- demo_data %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;% 
   group_by(date_, RACE) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = RACE)) + geom_line()+
   theme(aspect.ratio=3/7)+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
@@ -3000,7 +2962,7 @@ of Asian descent</p>
 <pre class="r"><code>unemp_by_age_group &lt;- demo_data %&gt;%
   filter(indname != &#39;Military&#39;, indname != &#39;Other&#39;) %&gt;% 
   group_by(date_, AgeGroup) %&gt;%
-  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = WTFINL))) %&gt;% 
+  summarize(UnemploymentRate = 1- (weighted.mean(is_employed == TRUE, w = final_weight))) %&gt;% 
   ggplot(aes(x = date_, y = UnemploymentRate, color = AgeGroup)) + geom_line()+
   theme(aspect.ratio=3/7)+
   geom_rect(aes(xmin=as_date(&#39;2020-03-01&#39;), xmax=as_date(&#39;2020-04-01&#39;), ymin=-Inf, ymax=Inf),  linetype = &#39;dashed&#39;,color=&quot;light green&quot;, fill = &#39;light green&#39; ,alpha=.01)+
@@ -3023,11 +2985,11 @@ experienced the lowest rates of unemployment in all industries</p>
          , date_
          ## Measure
          , is_employed
-         , WTFINL
+         , final_weight
          ## Variables
          , IND, indname, REGION
          ## Fixed
-         , AGE, sex, RACE, AgeGroup, MARST
+         , AGE, sex, RACE, AgeGroup, Married
   )
 
 reg1 &lt;- feols(is_employed~period_type + indname, se = &#39;hetero&#39;, data = reg_df)
