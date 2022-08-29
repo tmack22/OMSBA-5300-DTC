@@ -373,7 +373,7 @@ export_summs(m2_state_closure_layoff, model.names = 'Covid Related Unemployment 
 The model did not show a statistically significant relationship between the lock down start dates, layoffs and COVID related unemployment. This is hardly surprising given that layoffs began to reduce shortly after the first government lock down orders were issued on March 18th, 2020, as seen by the plot. The IPMUS variable "covid_impact" exhibits this tendency as well (see above). Beginning in April 2020, IPUMS began asking respondents if their unemployment was due to COVID. This statistic also fell, mirroring the drop in unemployment caused by layoffs following the first lock down. Furthermore, lockdown orders does not appear to have had a negative impact on the retail sector. Thus, we fail to reject our null and cannot accept the alternative hypothesis.
 
 ---
-## Additional analysis
+### Additional analysis
 Next, we decided to look at the data using unemployment rates within the data as our metric (rather than number of layoffs).
 
 ```{r message=FALSE, warning=FALSE}
@@ -497,7 +497,7 @@ Looking at our results, we can conclude that, when controlling for state,
  higher than average monthly pre-covid unemployment rates. This
  is true at a .001 level of significance.
 
-## Assumption Acknowledgement
+### Assumption Acknowledgement
 
 1. Our first assumption was that we can control for many economic and political differences by controlling for state.
 
@@ -506,7 +506,7 @@ Looking at our results, we can conclude that, when controlling for state,
 3. We assume unemployment is the main indicator of retail industry performance. It is assumed that a healthy retail industry has a steady flow of customers contributing to steady revenue flow, enabling it to maintain uniformly sized employee pools.
 
 
-## Final Results: “How Did COVID Impact the Retail Industry as Measured by Unemployment?”
+### Final Results: “How Did COVID Impact the Retail Industry as Measured by Unemployment?”
 
 Our first regression shows a statistically significant relationship between layoffs, lockdown start-dates, and COVID-related unemployment.
 
@@ -537,6 +537,22 @@ industry_df %>%
   labs(x="Date",y="Employment Percentage Change",color="Industry Name",
        title= "Employment Percentage Change by Industry")
 ```
+These graphs show two facts about the employment data: 
+  1)There was a severe employment drop around March 2020, followed by an employment 
+   correction in late 2020
+  2)Retail employment change appears to be slightly more volatile than Non-Retail.
+      This could be due to the fact that Retail is only one industry while Non-Retail
+      is a combination of a large grouping of industries
+###Summary Statistics
+```{r}
+industry_cat_df %>% filter(industry_cat == 'Retail')%>%
+                    sumtable(title= 'Retail Summary Statistics')
+
+industry_cat_df %>% filter(industry_cat == 'Non-Retail')%>%
+                    sumtable(title= 'Non-Retail Summary Statistics')
+```
+
+
 ###Creating a regression df for question 2
 ```{r}
 q2_reg_df <- filtered_df %>%
@@ -552,19 +568,34 @@ q2_reg_df <- filtered_df %>%
 ```
 
 ###Regressions
+
+####First Regression
 ```{r}
-reg1 <- feols(emp_count~indname,se= 'hetero',data= filtered_df)
-reg1.1 <- feols(emp_count~indname*covid_active,se='hetero',data= filtered_df)
+reg1 <- feols(log(emp_count)~indname,se= 'hetero',data= filtered_df)
+reg1.1 <- feols(log(emp_count)~indname + covid_active,se='hetero',data= filtered_df)
 etable(reg1,reg1.1)
+```
+This regression was to see how the Retail interaction coefficient on the log of employment count compared to the other industries. RetailTrade related to a 136% increase in employment count, and was statistically significant. When comparing RetailTrade to the other indnames it had on of the highest coefficient. This etable also included another regression to see if covid_active had a negative relationship to employment count, which it did at -16%.
 
-reg2 <- feols(emp_count~industry_cat,se='hetero',data= filtered_df)
-reg2.1 <- feols(emp_count~industry_cat*covid_active,se='hetero',data= filtered_df)
+####Second Regression
+```{r}
+reg2 <- feols(log(emp_count)~industry_cat,se='hetero',data= filtered_df)
+reg2.1 <- feols(log(emp_count)~industry_cat + covid_active,se='hetero',data= filtered_df)
 etable(reg2,reg2.1)
+```
+This regression is similar to the first regression except it was on the industry category field that grouped all industries into a binary variable of 'Retail' and 'Non-Retail'. This once again showed that there is a positive correlation between retail employment count.
 
+
+####Third Regression
+```{r}
 reg3 <- feols(employment_change~industry_cat,se= 'hetero',data= q2_reg_df)
-reg3.1 <- feols(employment_change~industry_cat*covid_active,se= 'hetero',data= q2_reg_df)
+reg3.1 <- feols(employment_change~industry_cat + covid_active,se= 'hetero',data= q2_reg_df)
 etable(reg3,reg3.1)
 ```
+
+###Assumptions
+
+###Final Results: How has retail fared relative to other industries?
 
 #Question 3 Analysis
 
