@@ -1,0 +1,174 @@
+---
+title: 1. How has COVID affected the health of the retail industry, as measured by
+  employment?
+author: "Taylor Mack"
+date: "8/27/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Q2. How has retail fared relative to other industries?
+
+The below analysis is focused on how the retail industry fared against other industries between 2019-01 to 2022-12. The key assumption is that employment level is the determining factor on whether a industry is successful or not. 
+
+[IPMUS employment data](https://cps.ipums.org/cps/index.shtml) was used in this analysis, with sample dates ranging from January 2019 to December of 2021. The following variables were used:
+
+| Variable |  Definition
+|:------    |:-------------------------------------------------     | 
+| `year` | survey year |
+| `serial` | household serial number |
+| `month` | month |
+| `hwtfinal` | Household weight, Basic Monthly |            |
+| `cpisid`  | CPSID, household record |
+| `asecflag` | Flag for ASEC |
+| `pernum` | Person number in sample unit  |
+| `wtfinl` | Final Basic Weight |
+| `cpsidp` | CPSID, person record  |
+| `empstat` | Employment status |
+| `ind` | Industry Identifier |
+| `indname` | Industry name |
+| `industry_cat` | Whether the industry is considered to be Retail or Non-Retail |
+| `date` | The date of the survey |
+| `covid_active` | A binary flag indicating covid was active
+                   0 : date < '2020-03' 
+                   1 : date >= '2020-03'|
+| `emp_count` | The total count of employment |
+| `avg_employment` | The average employment amount per month |
+| `employment_change` | The amount of employment change from the previous period |
+| `percent_change` | The percent change in employment from the previous period  |
+
+
+```{r include=FALSE}
+library(tidyverse)
+library(jtools)
+library(vtable)
+library(haven)
+library(lubridate)
+library(estimatr)
+library(fixest)
+library(dplyr)
+```
+
+**Raw Data**:
+```{r message=FALSE, warning=FALSE}
+industry_names <- read.csv('./indnames.csv') %>%
+  mutate(industry_cat = case_when(
+    indname == 'Retail Trade' ~ 'Retail',
+    indname != 'Retail Trade' ~ 'Non-Retail'))
+data <- read_dta('./cps_00004.dta.gz')
+```
+
+##Creating Q2 Dataframes
+```{r}
+# joining the initial data read with the industry_name dataframe
+df <- inner_join(data,industry_names,by= "ind") %>%
+  mutate(cpsid = format(cpsid,scientific= FALSE)) %>%
+  mutate(cpsidp = format(cpsidp,scientific= FALSE)) %>%
+  mutate(date = as_date(paste(year, month, '01', sep = '-'))) %>%
+  mutate(covid_active = case_when(date >= '2020-03-01' ~ 1,
+                                  date < '2020-03-01' ~ 0))
+#filtering for employed and cpsidp's that are not zero
+filtered_df <- df %>% filter(cpsidp > 0) %>%
+  filter(empstat <20 & empstat >= 10) %>% #20 and above indicates they are unemployed/no looking
+  group_by(date,indname) %>%
+  mutate(emp_count = n())
+
+
+
+```
+##Creating Q2 Dataframes to explore/visualize data
+###Creating a dataframe that will be used to graph the dataset to compare retail vs non-retail
+```{r}
+
+industry_cat_df <- filtered_df %>%
+               ungroup() %>%
+               select(c('industry_cat','year','date','covid_active','emp_count')) %>%
+               distinct() %>%
+               group_by(industry_cat,date) %>%
+               mutate(count = sum(emp_count))%>%
+               select(-c(5))%>%
+               distinct() %>%
+               ungroup()%>%
+               group_by(industry_cat)%>%
+               mutate(percent_change = ((count-lag(count))/lag(count)))%>%
+               mutate(percent_change = case_when(
+                 percent_change = is.na(percent_change) ~ 0,
+                 percent_change == is.na(percent_change) ~ 0,
+                 percent_change != is.na(percent_change) ~ percent_change))
+#Creating a dataframe that will be used to graph the dataset to compare retail vs non-retail
+industry_df <- filtered_df %>%
+  ungroup() %>%
+  select(c('indname','year','date','covid_active','emp_count')) %>%
+  distinct() %>%
+  group_by(indname,date) %>%
+  mutate(count = sum(emp_count))%>%
+  select(-c(5))%>%
+  distinct() %>%
+  ungroup()%>%
+  group_by(indname)%>%
+  mutate(percent_change = ((count-lag(count))/lag(count)))%>%
+  mutate(percent_change = case_when(
+    percent_change = is.na(percent_change) ~ 0,
+    percent_change == is.na(percent_change) ~ 0,
+    percent_change != is.na(percent_change) ~ percent_change))
+```
+
+#Plotting the Datasource
+
+The first graph is displaying the employment change percentage per month by the two industry categories, retail and non-retail
+
+The second graph is displaying the employment change percentage per month by each industry
+
+```{r}
+industry_cat_df %>%
+  ggplot(aes(x=date,y=percent_change,group=industry_cat,color=industry_cat)) +
+  scale_y_continuous(labels=scales::percent_format(accuracy=.1)) +
+  geom_point() + geom_line() + theme(aspect.ratio=6/7) +
+  labs(x="Date",y="Employment Percentage Change",color="Industry Category",
+       title= "Employment Percentage Change by Industry Category")
+
+industry_df %>%
+  ggplot(aes(x=date,y=percent_change,group=indname,color=indname)) +
+  scale_y_continuous(labels=scales::percent_format(accuracy=.1)) +
+  geom_point() + geom_line() + theme(aspect.ratio=1) +
+  labs(x="Date",y="Employment Percentage Change",color="Industry Name",
+       title= "Employment Percentage Change by Industry")
+```
+##Creating a regression df for question 2
+```{r}
+q2_reg_df <- filtered_df %>%
+  ungroup()%>%
+  group_by(date,industry_cat)%>%
+  mutate(avg_employment = mean(emp_count))%>%
+  select(c('industry_cat','year','date','covid_active','avg_employment'))%>%
+  distinct()%>%
+  ungroup()%>%
+  group_by(industry_cat)%>%
+  mutate(employment_change = ((avg_employment-lag(avg_employment))))%>%
+  drop_na()
+```
+
+##Q2 Regressions
+```{r}
+reg1 <- feols(emp_count~indname,se= 'hetero',data= filtered_df)
+reg1.1 <- feols(emp_count~indname*covid_active,se='hetero',data= filtered_df)
+etable(reg1,reg1.1)
+
+reg2 <- feols(emp_count~industry_cat,se='hetero',data= filtered_df)
+reg2.1 <- feols(emp_count~industry_cat*covid_active,se='hetero',data= filtered_df)
+etable(reg2,reg2.1)
+
+reg3 <- feols(employment_change~industry_cat,se= 'hetero',data= q2_reg_df)
+reg3.1 <- feols(employment_change~industry_cat*covid_active,se= 'hetero',data= q2_reg_df)
+etable(reg3,reg3.1)
+```
+
+
+
+
+
+
+
